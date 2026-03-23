@@ -3,8 +3,16 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { UserRole } from '@prisma/client';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
-import { RegisterResponse } from './interfaces/auth-response.interface';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import {
+  LoginResponse,
+  MeResponse,
+  RefreshResponse,
+  RegisterResponse,
+} from './interfaces/auth-response.interface';
 
 const mockRegisterResponse: RegisterResponse = {
   user: {
@@ -23,12 +31,54 @@ const mockRegisterResponse: RegisterResponse = {
   refreshToken: 'refresh-token',
 };
 
+const mockLoginResponse: LoginResponse = {
+  user: {
+    id: 'user-uuid',
+    name: 'Admin Test',
+    email: 'admin@test.com',
+    role: UserRole.admin,
+    tenantId: 'tenant-uuid',
+  },
+  tenant: {
+    id: 'tenant-uuid',
+    name: 'Taller Test',
+    ruc: '0992345678001',
+  },
+  accessToken: 'access-token',
+  refreshToken: 'refresh-token',
+};
+
+const mockRefreshResponse: RefreshResponse = {
+  accessToken: 'new-access-token',
+  refreshToken: 'new-refresh-token',
+};
+
+const mockMeResponse: MeResponse = {
+  id: 'user-uuid',
+  name: 'Admin Test',
+  email: 'admin@test.com',
+  role: UserRole.admin,
+  phone: '0999999999',
+  avatarUrl: null,
+  tenantId: 'tenant-uuid',
+  tenantName: 'Taller Test',
+};
+
 const registerDto: RegisterDto = {
   tenantName: 'Taller Test',
   tenantRuc: '0992345678001',
   adminName: 'Admin Test',
   adminEmail: 'admin@test.com',
   adminPassword: 'Password123',
+};
+
+const loginDto: LoginDto = {
+  email: 'admin@test.com',
+  password: 'Password123',
+};
+
+const refreshDto: RefreshTokenDto = {
+  refreshToken: 'some-refresh-token',
 };
 
 describe('AuthController', () => {
@@ -38,6 +88,10 @@ describe('AuthController', () => {
   beforeEach(async () => {
     const mockAuthService = {
       register: jest.fn().mockResolvedValue(mockRegisterResponse),
+      login: jest.fn().mockResolvedValue(mockLoginResponse),
+      refresh: jest.fn().mockResolvedValue(mockRefreshResponse),
+      logout: jest.fn().mockResolvedValue(undefined),
+      getMe: jest.fn().mockResolvedValue(mockMeResponse),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -46,6 +100,8 @@ describe('AuthController', () => {
       providers: [{ provide: AuthService, useValue: mockAuthService }],
     })
       .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: () => true })
       .compile();
 
@@ -83,6 +139,77 @@ describe('AuthController', () => {
 
       expect(result.data.accessToken).toBe('access-token');
       expect(result.data.refreshToken).toBe('refresh-token');
+    });
+  });
+
+  describe('login', () => {
+    it('should call authService.login with the dto', async () => {
+      const loginSpy = jest.spyOn(authService, 'login');
+      await controller.login(loginDto);
+      expect(loginSpy).toHaveBeenCalledWith(loginDto);
+    });
+
+    it('should return correct message and login data', async () => {
+      const result = await controller.login(loginDto);
+
+      expect(result.message).toBe('Inicio de sesión exitoso');
+      expect(result.data.user.id).toBe('user-uuid');
+      expect(result.data.accessToken).toBe('access-token');
+      expect(result.data.refreshToken).toBe('refresh-token');
+    });
+  });
+
+  describe('refresh', () => {
+    it('should call authService.refresh with the dto', async () => {
+      const refreshSpy = jest.spyOn(authService, 'refresh');
+      await controller.refresh(refreshDto);
+      expect(refreshSpy).toHaveBeenCalledWith(refreshDto);
+    });
+
+    it('should return new tokens', async () => {
+      const result = await controller.refresh(refreshDto);
+
+      expect(result.message).toBe('Tokens renovados exitosamente');
+      expect(result.data.accessToken).toBe('new-access-token');
+      expect(result.data.refreshToken).toBe('new-refresh-token');
+    });
+  });
+
+  describe('logout', () => {
+    it('should call authService.logout with the dto', async () => {
+      const logoutSpy = jest.spyOn(authService, 'logout');
+      await controller.logout(refreshDto);
+      expect(logoutSpy).toHaveBeenCalledWith(refreshDto);
+    });
+
+    it('should return success message with null data', async () => {
+      const result = await controller.logout(refreshDto);
+
+      expect(result.message).toBe('Sesión cerrada exitosamente');
+      expect(result.data).toBeNull();
+    });
+  });
+
+  describe('getMe', () => {
+    const authenticatedUser = {
+      id: 'user-uuid',
+      tenantId: 'tenant-uuid',
+      role: 'admin',
+      email: 'admin@test.com',
+    };
+
+    it('should call authService.getMe with user id and tenantId', async () => {
+      const getMeSpy = jest.spyOn(authService, 'getMe');
+      await controller.getMe(authenticatedUser);
+      expect(getMeSpy).toHaveBeenCalledWith('user-uuid', 'tenant-uuid');
+    });
+
+    it('should return user profile', async () => {
+      const result = await controller.getMe(authenticatedUser);
+
+      expect(result.message).toBe('Perfil obtenido exitosamente');
+      expect(result.data.id).toBe('user-uuid');
+      expect(result.data.tenantName).toBe('Taller Test');
     });
   });
 });

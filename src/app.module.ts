@@ -1,6 +1,5 @@
-import { Module } from '@nestjs/common';
+import { Module, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -22,13 +21,8 @@ import { PrismaModule } from './prisma/prisma.module';
         level: process.env['NODE_ENV'] !== 'production' ? 'debug' : 'info',
         redact: ['req.headers.authorization', 'req.headers.cookie'],
       },
+      forRoutes: [{ path: '{*path}', method: RequestMethod.ALL }],
     }),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60_000,
-        limit: 100,
-      },
-    ]),
     PrismaModule,
     AuthModule,
   ],

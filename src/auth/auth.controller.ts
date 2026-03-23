@@ -1,16 +1,32 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
-import { RegisterResponse } from './interfaces/auth-response.interface';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import {
+  LoginResponse,
+  MeResponse,
+  RefreshResponse,
+  RegisterResponse,
+} from './interfaces/auth-response.interface';
+import { AuthenticatedUser } from './strategies/jwt.strategy';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -35,5 +51,58 @@ export class AuthController {
       message: 'Taller registrado exitosamente. Bienvenido a TallerIA.',
       data,
     };
+  }
+
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 900_000 } })
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  async login(
+    @Body() dto: LoginDto,
+  ): Promise<{ message: string; data: LoginResponse }> {
+    const data = await this.authService.login(dto);
+    return { message: 'Inicio de sesión exitoso', data };
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiResponse({ status: 200, description: 'Tokens refreshed' })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid or expired refresh token',
+  })
+  async refresh(
+    @Body() dto: RefreshTokenDto,
+  ): Promise<{ message: string; data: RefreshResponse }> {
+    const data = await this.authService.refresh(dto);
+    return { message: 'Tokens renovados exitosamente', data };
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Logout and revoke refresh token' })
+  @ApiResponse({ status: 200, description: 'Logged out successfully' })
+  async logout(
+    @Body() dto: RefreshTokenDto,
+  ): Promise<{ message: string; data: null }> {
+    await this.authService.logout(dto);
+    return { message: 'Sesión cerrada exitosamente', data: null };
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Get current user profile (always queries DB)' })
+  @ApiResponse({ status: 200, description: 'User profile' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getMe(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ message: string; data: MeResponse }> {
+    const data = await this.authService.getMe(user.id, user.tenantId);
+    return { message: 'Perfil obtenido exitosamente', data };
   }
 }
