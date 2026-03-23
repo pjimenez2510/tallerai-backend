@@ -1,4 +1,8 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '@prisma/client';
@@ -6,11 +10,16 @@ import * as bcrypt from 'bcrypt';
 import type { StringValue } from 'ms';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PrismaService } from '../prisma/prisma.service';
+import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import {
   AuthTenantPayload,
   AuthUserPayload,
   JwtPayload,
+  LoginResponse,
+  MeResponse,
+  RefreshResponse,
   RegisterResponse,
 } from './interfaces/auth-response.interface';
 
@@ -60,6 +69,184 @@ export class AuthService {
       refreshToken,
     };
   }
+
+  async login(dto: LoginDto): Promise<LoginResponse> {
+    const user = await this.prisma.user.findFirst({
+      where: { email: dto.email, is_active: true },
+      include: { tenant: true },
+    });
+
+    if (!user) {
+      this.logger.warn({ email: dto.email }, 'Login failed: user not found');
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    const passwordValid = await bcrypt.compare(
+      dto.password,
+      user.password_hash,
+    );
+    if (!passwordValid) {
+      this.logger.warn(
+        { userId: user.id, email: dto.email },
+        'Login failed: invalid password',
+      );
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    if (!user.tenant.is_active) {
+      this.logger.warn(
+        { tenantId: user.tenant_id },
+        'Login failed: tenant inactive',
+      );
+      throw new UnauthorizedException(
+        'El taller se encuentra deshabilitado. Contacte al administrador.',
+      );
+    }
+
+    const accessToken = this.signAccessToken(
+      user.id,
+      user.tenant_id,
+      user.role,
+      user.email,
+    );
+    const refreshToken = this.signRefreshToken(user.id);
+    const tokenHash = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);
+    await this.storeRefreshToken(user.id, tokenHash);
+
+    this.logger.info(
+      { userId: user.id, tenantId: user.tenant_id },
+      'Login successful',
+    );
+
+    return {
+      user: this.mapUser(user, user.tenant_id),
+      tenant: this.mapTenant(user.tenant),
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  async refresh(dto: RefreshTokenDto): Promise<RefreshResponse> {
+    const payload = this.verifyRefreshToken(dto.refreshToken);
+
+    const storedTokens = await this.prisma.refreshToken.findMany({
+      where: {
+        user_id: payload.sub,
+        is_revoked: false,
+      },
+    });
+
+    let matchedTokenId: string | null = null;
+    for (const stored of storedTokens) {
+      const isMatch = await bcrypt.compare(dto.refreshToken, stored.token_hash);
+      if (isMatch) {
+        matchedTokenId = stored.id;
+        break;
+      }
+    }
+
+    if (!matchedTokenId) {
+      this.logger.warn(
+        { userId: payload.sub },
+        'Refresh failed: no matching token',
+      );
+      throw new UnauthorizedException('Token de refresco inválido');
+    }
+
+    const storedToken = storedTokens.find((t) => t.id === matchedTokenId);
+    if (!storedToken || storedToken.expires_at < new Date()) {
+      this.logger.warn(
+        { userId: payload.sub },
+        'Refresh failed: token expired',
+      );
+      throw new UnauthorizedException('Token de refresco expirado');
+    }
+
+    // Revoke old token
+    await this.prisma.refreshToken.update({
+      where: { id: matchedTokenId },
+      data: { is_revoked: true },
+    });
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: payload.sub, is_active: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo');
+    }
+
+    const newAccessToken = this.signAccessToken(
+      user.id,
+      user.tenant_id,
+      user.role,
+      user.email,
+    );
+    const newRefreshToken = this.signRefreshToken(user.id);
+    const newTokenHash = await bcrypt.hash(newRefreshToken, BCRYPT_ROUNDS);
+    await this.storeRefreshToken(user.id, newTokenHash);
+
+    return {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    };
+  }
+
+  async logout(dto: RefreshTokenDto): Promise<void> {
+    let payload: { sub: string };
+    try {
+      payload = this.verifyRefreshToken(dto.refreshToken);
+    } catch {
+      // Even if token is invalid/expired, we don't leak info
+      return;
+    }
+
+    const storedTokens = await this.prisma.refreshToken.findMany({
+      where: {
+        user_id: payload.sub,
+        is_revoked: false,
+      },
+    });
+
+    for (const stored of storedTokens) {
+      const isMatch = await bcrypt.compare(dto.refreshToken, stored.token_hash);
+      if (isMatch) {
+        await this.prisma.refreshToken.update({
+          where: { id: stored.id },
+          data: { is_revoked: true },
+        });
+        this.logger.info(
+          { userId: payload.sub },
+          'Logout: refresh token revoked',
+        );
+        return;
+      }
+    }
+  }
+
+  async getMe(userId: string, tenantId: string): Promise<MeResponse> {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, tenant_id: tenantId, is_active: true },
+      include: { tenant: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo');
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone,
+      avatarUrl: user.avatar_url,
+      tenantId: user.tenant_id,
+      tenantName: user.tenant.name,
+    };
+  }
+
+  // === Private helpers ===
 
   private async assertRucNotTaken(ruc: string): Promise<void> {
     const existing = await this.prisma.tenant.findUnique({ where: { ruc } });
@@ -122,6 +309,15 @@ export class AuthService {
       { sub: userId },
       { secret, expiresIn: rawExpiry as StringValue },
     );
+  }
+
+  private verifyRefreshToken(token: string): { sub: string } {
+    try {
+      const secret = this.configService.get<string>('jwt.refreshSecret');
+      return this.jwtService.verify<{ sub: string }>(token, { secret });
+    } catch {
+      throw new UnauthorizedException('Token de refresco inválido o expirado');
+    }
   }
 
   private async storeRefreshToken(
