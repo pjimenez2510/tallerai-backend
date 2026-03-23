@@ -33,14 +33,25 @@ export class AuthService {
     await this.assertEmailNotTaken(dto.adminEmail);
 
     const passwordHash = await bcrypt.hash(dto.adminPassword, BCRYPT_ROUNDS);
-    const { tenant, user } = await this.createTenantWithAdmin(dto, passwordHash);
+    const { tenant, user } = await this.createTenantWithAdmin(
+      dto,
+      passwordHash,
+    );
 
-    const accessToken = this.signAccessToken(user.id, tenant.id, user.role, user.email);
+    const accessToken = this.signAccessToken(
+      user.id,
+      tenant.id,
+      user.role,
+      user.email,
+    );
     const refreshToken = this.signRefreshToken(user.id);
     const tokenHash = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);
     await this.storeRefreshToken(user.id, tokenHash);
 
-    this.logger.info({ tenantId: tenant.id, userId: user.id }, 'Tenant registered');
+    this.logger.info(
+      { tenantId: tenant.id, userId: user.id },
+      'Tenant registered',
+    );
 
     return {
       user: this.mapUser(user, tenant.id),
@@ -53,7 +64,9 @@ export class AuthService {
   private async assertRucNotTaken(ruc: string): Promise<void> {
     const existing = await this.prisma.tenant.findUnique({ where: { ruc } });
     if (existing) {
-      throw new ConflictException('Ya existe un taller registrado con este RUC');
+      throw new ConflictException(
+        'Ya existe un taller registrado con este RUC',
+      );
     }
   }
 
@@ -93,20 +106,28 @@ export class AuthService {
   ): string {
     const payload: JwtPayload = { sub: userId, tenantId, role, email };
     const secret = this.configService.get<string>('jwt.secret');
-    const rawExpiry = this.configService.get<string>('jwt.accessExpiresIn') ?? '15m';
-    return this.jwtService.sign(payload, { secret, expiresIn: rawExpiry as StringValue });
+    const rawExpiry =
+      this.configService.get<string>('jwt.accessExpiresIn') ?? '15m';
+    return this.jwtService.sign(payload, {
+      secret,
+      expiresIn: rawExpiry as StringValue,
+    });
   }
 
   private signRefreshToken(userId: string): string {
     const secret = this.configService.get<string>('jwt.refreshSecret');
-    const rawExpiry = this.configService.get<string>('jwt.refreshExpiresIn') ?? '7d';
+    const rawExpiry =
+      this.configService.get<string>('jwt.refreshExpiresIn') ?? '7d';
     return this.jwtService.sign(
       { sub: userId },
       { secret, expiresIn: rawExpiry as StringValue },
     );
   }
 
-  private async storeRefreshToken(userId: string, tokenHash: string): Promise<void> {
+  private async storeRefreshToken(
+    userId: string,
+    tokenHash: string,
+  ): Promise<void> {
     const expiresAt = new Date(Date.now() + REFRESH_TOKEN_DAYS * MS_PER_DAY);
     await this.prisma.refreshToken.create({
       data: { user_id: userId, token_hash: tokenHash, expires_at: expiresAt },
@@ -117,10 +138,20 @@ export class AuthService {
     user: { id: string; name: string; email: string; role: UserRole },
     tenantId: string,
   ): AuthUserPayload {
-    return { id: user.id, name: user.name, email: user.email, role: user.role, tenantId };
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      tenantId,
+    };
   }
 
-  private mapTenant(tenant: { id: string; name: string; ruc: string }): AuthTenantPayload {
+  private mapTenant(tenant: {
+    id: string;
+    name: string;
+    ruc: string;
+  }): AuthTenantPayload {
     return { id: tenant.id, name: tenant.name, ruc: tenant.ruc };
   }
 }

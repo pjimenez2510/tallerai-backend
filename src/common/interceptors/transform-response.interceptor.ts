@@ -8,16 +8,19 @@ import { type Observable, map } from 'rxjs';
 import { ApiResponse } from '../interfaces/api-response.interface';
 
 @Injectable()
-export class TransformResponseInterceptor<T>
-  implements NestInterceptor<T, ApiResponse<T>>
-{
+export class TransformResponseInterceptor<T> implements NestInterceptor<
+  T,
+  ApiResponse<T>
+> {
   intercept(
     context: ExecutionContext,
     next: CallHandler,
   ): Observable<ApiResponse<T>> {
     return next.handle().pipe(
       map((data: { message?: string; data?: T } | T) => {
-        const response = context.switchToHttp().getResponse<{ statusCode: number }>();
+        const response = context
+          .switchToHttp()
+          .getResponse<{ statusCode: number }>();
         const hasMessageKey =
           data !== null &&
           data !== undefined &&

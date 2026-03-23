@@ -41,32 +41,33 @@ describe('AuthController', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      imports: [
-        ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
-      ],
+      imports: [ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }])],
       controllers: [AuthController],
-      providers: [
-        { provide: AuthService, useValue: mockAuthService },
-      ],
+      providers: [{ provide: AuthService, useValue: mockAuthService }],
     })
       .overrideGuard(ThrottlerGuard)
       .useValue({ canActivate: () => true })
       .compile();
 
     controller = module.get<AuthController>(AuthController);
-    authService = module.get(AuthService);
+    authService = module.get<AuthService>(
+      AuthService,
+    ) as jest.Mocked<AuthService>;
   });
 
   describe('register', () => {
     it('should call authService.register with the dto', async () => {
+      const registerSpy = jest.spyOn(authService, 'register');
       await controller.register(registerDto);
-      expect(authService.register).toHaveBeenCalledWith(registerDto);
+      expect(registerSpy).toHaveBeenCalledWith(registerDto);
     });
 
     it('should return response with correct message and data shape', async () => {
       const result = await controller.register(registerDto);
 
-      expect(result.message).toBe('Taller registrado exitosamente. Bienvenido a TallerIA.');
+      expect(result.message).toBe(
+        'Taller registrado exitosamente. Bienvenido a TallerIA.',
+      );
       expect(result.data).toEqual(mockRegisterResponse);
     });
 

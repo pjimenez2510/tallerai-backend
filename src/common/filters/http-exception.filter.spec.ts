@@ -19,7 +19,10 @@ describe('HttpExceptionFilter', () => {
   });
 
   it('should handle string exception response', () => {
-    const exception = new HttpException('Simple error message', HttpStatus.BAD_REQUEST);
+    const exception = new HttpException(
+      'Simple error message',
+      HttpStatus.BAD_REQUEST,
+    );
     const host = makeHost(jsonMock);
 
     filter.catch(exception, host as never);
@@ -28,8 +31,8 @@ describe('HttpExceptionFilter', () => {
       expect.objectContaining({
         statusCode: 400,
         message: 'Simple error message',
-        error: expect.any(String),
-        timestamp: expect.any(String),
+        error: expect.any(String) as string,
+        timestamp: expect.any(String) as string,
       }),
     );
   });
@@ -54,7 +57,10 @@ describe('HttpExceptionFilter', () => {
 
   it('should join array message into single string', () => {
     const exception = new HttpException(
-      { message: ['field1 is required', 'field2 is invalid'], error: 'BadRequest' },
+      {
+        message: ['field1 is required', 'field2 is invalid'],
+        error: 'BadRequest',
+      },
       HttpStatus.BAD_REQUEST,
     );
     const host = makeHost(jsonMock);
@@ -69,7 +75,10 @@ describe('HttpExceptionFilter', () => {
   });
 
   it('should fallback to default message when no message in object', () => {
-    const exception = new HttpException({ error: 'SomeError' }, HttpStatus.INTERNAL_SERVER_ERROR);
+    const exception = new HttpException(
+      { error: 'SomeError' },
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
     const host = makeHost(jsonMock);
 
     filter.catch(exception, host as never);
@@ -87,7 +96,8 @@ describe('HttpExceptionFilter', () => {
 
     filter.catch(exception, host as never);
 
-    const [[arg]] = jsonMock.mock.calls as [[{ timestamp: string }]];
-    expect(() => new Date(arg.timestamp)).not.toThrow();
+    const calls = jsonMock.mock.calls as Array<[{ timestamp: string }]>;
+    const firstCall = calls[0] as [{ timestamp: string }];
+    expect(() => new Date(firstCall[0].timestamp)).not.toThrow();
   });
 });

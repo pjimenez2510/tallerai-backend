@@ -15,9 +15,14 @@ export class RegisterDto {
   @MaxLength(200)
   tenantName!: string;
 
-  @ApiProperty({ example: '0992345678001', description: 'RUC ecuatoriano (13 dígitos)' })
+  @ApiProperty({
+    example: '0992345678001',
+    description: 'RUC ecuatoriano (13 dígitos)',
+  })
   @IsString()
-  @Matches(/^\d{13}$/, { message: 'El RUC debe tener exactamente 13 dígitos numéricos' })
+  @Matches(/^\d{13}$/, {
+    message: 'El RUC debe tener exactamente 13 dígitos numéricos',
+  })
   @MaxLength(13)
   tenantRuc!: string;
 
@@ -42,7 +47,8 @@ export class RegisterDto {
   @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
   @MaxLength(128)
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/, {
-    message: 'La contraseña debe contener al menos una mayúscula, una minúscula y un número',
+    message:
+      'La contraseña debe contener al menos una mayúscula, una minúscula y un número',
   })
   adminPassword!: string;
 

@@ -1,4 +1,11 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -14,7 +21,9 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 900_000 } })
-  @ApiOperation({ summary: 'Register a new workshop (creates Tenant + admin User)' })
+  @ApiOperation({
+    summary: 'Register a new workshop (creates Tenant + admin User)',
+  })
   @ApiResponse({ status: 201, description: 'Tenant registered successfully' })
   @ApiResponse({ status: 409, description: 'RUC or email already registered' })
   @ApiResponse({ status: 400, description: 'Validation error' })
@@ -22,6 +31,9 @@ export class AuthController {
     @Body() dto: RegisterDto,
   ): Promise<{ message: string; data: RegisterResponse }> {
     const data = await this.authService.register(dto);
-    return { message: 'Taller registrado exitosamente. Bienvenido a TallerIA.', data };
+    return {
+      message: 'Taller registrado exitosamente. Bienvenido a TallerIA.',
+      data,
+    };
   }
 }

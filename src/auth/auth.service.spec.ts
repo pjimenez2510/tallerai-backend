@@ -101,13 +101,13 @@ describe('AuthService', () => {
     beforeEach(() => {
       mockPrisma.tenant.findUnique.mockResolvedValue(null);
       mockPrisma.user.findFirst.mockResolvedValue(null);
-      mockPrisma.$transaction.mockImplementation(async (fn: (tx: typeof mockPrisma) => Promise<unknown>) =>
-        fn(mockPrisma),
+      mockPrisma.$transaction.mockImplementation(
+        (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma),
       );
       mockPrisma.tenant.create.mockResolvedValue(mockTenant);
       mockPrisma.user.create.mockResolvedValue(mockUser);
       mockPrisma.refreshToken.create.mockResolvedValue({});
-      mockBcrypt.hash.mockImplementation(() => Promise.resolve('hashed-value'));
+      (mockBcrypt.hash as jest.Mock).mockResolvedValue('hashed-value');
     });
 
     it('should register a tenant and return tokens', async () => {
@@ -144,13 +144,17 @@ describe('AuthService', () => {
 
     it('should hash the password with bcrypt', async () => {
       await service.register(registerDto);
-      expect(mockBcrypt.hash).toHaveBeenCalledWith(registerDto.adminPassword, 10);
+      expect(mockBcrypt.hash).toHaveBeenCalledWith(
+        registerDto.adminPassword,
+        10,
+      );
     });
 
     it('should store a hashed refresh token in the DB', async () => {
       await service.register(registerDto);
       expect(mockPrisma.refreshToken.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           data: expect.objectContaining({
             user_id: 'user-uuid',
             token_hash: 'hashed-value',
@@ -186,7 +190,9 @@ describe('AuthService', () => {
     it('should not check email if RUC is already taken', async () => {
       mockPrisma.tenant.findUnique.mockResolvedValue(mockTenant);
 
-      await expect(service.register(registerDto)).rejects.toThrow(ConflictException);
+      await expect(service.register(registerDto)).rejects.toThrow(
+        ConflictException,
+      );
       expect(mockPrisma.user.findFirst).not.toHaveBeenCalled();
     });
   });
