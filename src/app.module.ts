@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
@@ -21,6 +21,7 @@ import { PrismaModule } from './prisma/prisma.module';
         level: process.env['NODE_ENV'] !== 'production' ? 'debug' : 'info',
         redact: ['req.headers.authorization', 'req.headers.cookie'],
       },
+      forRoutes: [{ path: '{*path}', method: RequestMethod.ALL }],
     }),
     PrismaModule,
     AuthModule,
