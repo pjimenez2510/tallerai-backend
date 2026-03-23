@@ -1,6 +1,5 @@
 // This is your Prisma schema file.
 // Learn more about it in the docs: https://pris.ly/d/prisma-schema
-// Full schema for TallerIA will be added in Epic 0/1 development.
 
 generator client {
   provider = "prisma-client-js"
@@ -9,4 +8,76 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum UserRole {
+  admin
+  jefe_taller
+  recepcionista
+  mecanico
+}
+
+// ==========================================
+// SISTEMA / AUTENTICACION
+// ==========================================
+
+model Tenant {
+  id         String   @id @default(uuid())
+  name       String   @db.VarChar(200)
+  ruc        String   @unique @db.VarChar(13)
+  address    String?  @db.VarChar(500)
+  phone      String?  @db.VarChar(20)
+  email      String?  @db.VarChar(200)
+  logo_url   String?  @db.VarChar(1000)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relations
+  users User[]
+
+  @@map("tenants")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  tenant_id     String
+  name          String   @db.VarChar(200)
+  email         String   @db.VarChar(200)
+  password_hash String   @db.VarChar(255)
+  role          UserRole @default(mecanico)
+  phone         String?  @db.VarChar(20)
+  avatar_url    String?  @db.VarChar(1000)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  // Relations
+  tenant         Tenant         @relation(fields: [tenant_id], references: [id])
+  refresh_tokens RefreshToken[]
+
+  @@unique([tenant_id, email])
+  @@index([tenant_id, role])
+  @@index([tenant_id, is_active])
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  user_id    String
+  token_hash String   @db.VarChar(255)
+  is_revoked Boolean  @default(false)
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([token_hash])
+  @@map("refresh_tokens")
 }
