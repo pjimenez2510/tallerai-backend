@@ -7,6 +7,8 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformResponseInterceptor } from './common/interceptors/transform-response.interceptor';
+import { TenantContext } from './common/tenant/tenant.context';
+import { TenantInterceptor } from './common/tenant/tenant.interceptor';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -48,7 +50,11 @@ async function bootstrap(): Promise<void> {
   );
 
   // Global interceptors
-  app.useGlobalInterceptors(new TransformResponseInterceptor());
+  const tenantContext = app.get(TenantContext);
+  app.useGlobalInterceptors(
+    new TenantInterceptor(tenantContext),
+    new TransformResponseInterceptor(),
+  );
 
   // Global filters
   app.useGlobalFilters(new HttpExceptionFilter());

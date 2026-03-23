@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { appConfig } from './config/app.config';
 import { databaseConfig } from './config/database.config';
 import { jwtConfig } from './config/jwt.config';
+import { TenantModule } from './common/tenant/tenant.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -23,6 +24,7 @@ import { PrismaModule } from './prisma/prisma.module';
       },
       forRoutes: [{ path: '{*path}', method: RequestMethod.ALL }],
     }),
+    TenantModule,
     PrismaModule,
     AuthModule,
   ],
