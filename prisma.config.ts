@@ -3,11 +3,7 @@ import { defineConfig } from 'prisma/config';
 
 export default defineConfig({
   schema: path.join(__dirname, 'prisma', 'schema.prisma'),
-  migrate: {
-    async development() {
-      return {
-        url: process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/tallerai_dev',
-      };
-    },
+  datasource: {
+    url: process.env['DATABASE_URL'] ?? 'postgresql://dev:tallerai_dev_2026@localhost:5433/tallerai?schema=public',
   },
 });

@@ -23,7 +23,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let message: string;
     let error: string;
 
-    const httpStatusName = (HttpStatus as Record<number, string | undefined>)[status] ?? 'Error';
+    const httpStatusName =
+      (HttpStatus as Record<number, string | undefined>)[status] ?? 'Error';
 
     if (typeof exceptionResponse === 'string') {
       message = exceptionResponse;

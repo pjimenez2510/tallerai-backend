@@ -20,7 +20,9 @@ async function bootstrap(): Promise<void> {
   // Config
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port') ?? 3001;
-  const corsOrigins = configService.get<string[]>('app.corsOrigins') ?? ['http://localhost:3000'];
+  const corsOrigins = configService.get<string[]>('app.corsOrigins') ?? [
+    'http://localhost:3000',
+  ];
   const nodeEnv = configService.get<string>('app.nodeEnv') ?? 'development';
   const apiPrefix = configService.get<string>('app.apiPrefix') ?? 'api/v1';
 
@@ -55,7 +57,9 @@ async function bootstrap(): Promise<void> {
   if (nodeEnv !== 'production') {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('TallerIA API')
-      .setDescription('Sistema de Gestión de Órdenes de Trabajo para Talleres Mecánicos')
+      .setDescription(
+        'Sistema de Gestión de Órdenes de Trabajo para Talleres Mecánicos',
+      )
       .setVersion('1.0')
       .addBearerAuth(
         { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
