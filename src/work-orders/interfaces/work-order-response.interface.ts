@@ -44,6 +44,8 @@ export interface WorkOrderResponse {
   total: number;
   tasks: WorkOrderTaskResponse[];
   parts: WorkOrderPartResponse[];
+  clientSignature: string | null;
+  signatureDate: string | null;
   createdAt: string;
   updatedAt: string;
 }
