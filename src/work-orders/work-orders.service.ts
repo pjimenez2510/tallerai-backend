@@ -157,6 +157,9 @@ export class WorkOrdersService {
         ? { connect: { id: dto.assignedTo } }
         : { disconnect: true };
     }
+    if (dto.estimatedDate !== undefined) {
+      data.estimated_date = new Date(dto.estimatedDate);
+    }
 
     const workOrder = await this.prisma.workOrder.update({
       where: { id },
@@ -174,6 +177,34 @@ export class WorkOrdersService {
     );
 
     return this.mapWorkOrder(workOrder);
+  }
+
+  async findByClient(clientId: string): Promise<WorkOrderResponse[]> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    await this.assertClientExists(clientId, tenantId);
+
+    const workOrders = await this.prisma.workOrder.findMany({
+      where: { tenant_id: tenantId, client_id: clientId },
+      include: INCLUDE_RELATIONS,
+      orderBy: { created_at: 'desc' },
+    });
+
+    return workOrders.map((wo) => this.mapWorkOrder(wo));
+  }
+
+  async findByVehicle(vehicleId: string): Promise<WorkOrderResponse[]> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    await this.assertVehicleExists(vehicleId, tenantId);
+
+    const workOrders = await this.prisma.workOrder.findMany({
+      where: { tenant_id: tenantId, vehicle_id: vehicleId },
+      include: INCLUDE_RELATIONS,
+      orderBy: { created_at: 'desc' },
+    });
+
+    return workOrders.map((wo) => this.mapWorkOrder(wo));
   }
 
   async addTask(

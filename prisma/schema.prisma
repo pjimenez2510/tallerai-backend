@@ -55,12 +55,13 @@ model Tenant {
   updated_at DateTime @updatedAt
 
   // Relations
-  users       User[]
-  clients     Client[]
-  vehicles    Vehicle[]
-  products    Product[]
-  work_orders WorkOrder[]
-  services    Service[]
+  users           User[]
+  clients         Client[]
+  vehicles        Vehicle[]
+  products        Product[]
+  work_orders     WorkOrder[]
+  services        Service[]
+  purchase_orders PurchaseOrder[]
 
   @@map("tenants")
 }
@@ -181,9 +182,10 @@ model Product {
   updated_at     DateTime @updatedAt
 
   // Relations
-  tenant          Tenant           @relation(fields: [tenant_id], references: [id])
-  stock_movements StockMovement[]
-  work_order_parts WorkOrderPart[]
+  tenant               Tenant              @relation(fields: [tenant_id], references: [id])
+  stock_movements      StockMovement[]
+  work_order_parts     WorkOrderPart[]
+  purchase_order_items PurchaseOrderItem[]
 
   @@unique([tenant_id, code])
   @@index([tenant_id, is_active])
@@ -316,6 +318,45 @@ model WorkOrderPart {
   @@index([work_order_id])
   @@index([product_id])
   @@map("work_order_parts")
+}
+
+// ==========================================
+// COMPRAS
+// ==========================================
+
+model PurchaseOrder {
+  id           String    @id @default(uuid())
+  tenant_id    String
+  order_number String    @db.VarChar(20)
+  supplier     String    @db.VarChar(200)
+  notes        String?   @db.VarChar(2000)
+  total        Decimal   @default(0) @db.Decimal(12, 2)
+  status       String    @default("pendiente") @db.VarChar(20)
+  received_at  DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+
+  tenant Tenant              @relation(fields: [tenant_id], references: [id])
+  items  PurchaseOrderItem[]
+
+  @@unique([tenant_id, order_number])
+  @@index([tenant_id, status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id                String  @id @default(uuid())
+  purchase_order_id String
+  product_id        String
+  quantity          Int
+  unit_cost         Decimal @db.Decimal(12, 2)
+  total             Decimal @db.Decimal(12, 2)
+
+  purchase_order PurchaseOrder @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade)
+  product        Product       @relation(fields: [product_id], references: [id])
+
+  @@index([purchase_order_id])
+  @@map("purchase_order_items")
 }
 
 model RefreshToken {

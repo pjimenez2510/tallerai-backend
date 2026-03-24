@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { WorkOrderPriority, WorkOrderStatus } from '@prisma/client';
 import {
+  IsDateString,
   IsEnum,
   IsOptional,
   IsString,
@@ -41,4 +42,18 @@ export class UpdateWorkOrderDto {
   @IsOptional()
   @IsUUID('4', { message: 'El ID del mecánico debe ser un UUID válido' })
   assignedTo?: string | null;
+
+  @ApiPropertyOptional({
+    example: '2026-04-01T18:00:00.000Z',
+    description: 'Fecha prometida de entrega (ISO 8601)',
+  })
+  @IsOptional()
+  @IsDateString(
+    {},
+    {
+      message:
+        'La fecha estimada debe ser una fecha válida en formato ISO 8601',
+    },
+  )
+  estimatedDate?: string;
 }

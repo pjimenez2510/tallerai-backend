@@ -1,0 +1,103 @@
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
+import { JwtAuthGuard, Roles, RolesGuard } from '../auth';
+import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
+import { PurchasesService } from './purchases.service';
+
+@ApiTags('Purchases')
+@ApiBearerAuth('access-token')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Controller('purchases')
+export class PurchasesController {
+  constructor(private readonly purchasesService: PurchasesService) {}
+
+  @Post()
+  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @ApiOperation({ summary: 'Crear orden de compra' })
+  @ApiResponse({ status: 201, description: 'Orden de compra creada' })
+  @ApiResponse({ status: 404, description: 'Producto no encontrado' })
+  async create(@Body() dto: CreatePurchaseOrderDto) {
+    const data = await this.purchasesService.create(dto);
+    return { message: 'Orden de compra creada exitosamente', data };
+  }
+
+  @Get()
+  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @ApiOperation({ summary: 'Listar órdenes de compra del taller' })
+  @ApiResponse({ status: 200, description: 'Lista de órdenes de compra' })
+  async findAll() {
+    const data = await this.purchasesService.findAll();
+    return { message: 'Órdenes de compra obtenidas exitosamente', data };
+  }
+
+  @Get(':id')
+  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @ApiOperation({ summary: 'Obtener orden de compra por ID' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Orden de compra encontrada' })
+  @ApiResponse({ status: 404, description: 'Orden de compra no encontrada' })
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    const data = await this.purchasesService.findOne(id);
+    return { message: 'Orden de compra obtenida exitosamente', data };
+  }
+
+  @Patch(':id/receive')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @ApiOperation({
+    summary:
+      'Marcar orden de compra como recibida: actualiza stock y costo promedio ponderado',
+  })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({
+    status: 200,
+    description: 'Orden recibida, stock y costos actualizados',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'La orden no está en estado pendiente',
+  })
+  @ApiResponse({ status: 404, description: 'Orden de compra no encontrada' })
+  async receive(@Param('id', ParseUUIDPipe) id: string) {
+    const data = await this.purchasesService.receive(id);
+    return {
+      message:
+        'Orden de compra recibida. Stock y costos actualizados exitosamente',
+      data,
+    };
+  }
+
+  @Patch(':id/cancel')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @ApiOperation({ summary: 'Cancelar orden de compra' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Orden de compra cancelada' })
+  @ApiResponse({
+    status: 400,
+    description: 'La orden no está en estado pendiente',
+  })
+  @ApiResponse({ status: 404, description: 'Orden de compra no encontrada' })
+  async cancel(@Param('id', ParseUUIDPipe) id: string) {
+    const data = await this.purchasesService.cancel(id);
+    return { message: 'Orden de compra cancelada exitosamente', data };
+  }
+}
