@@ -1,5 +1,16 @@
 import { WorkOrderPriority, WorkOrderStatus } from '@prisma/client';
 
+export interface WorkOrderPartResponse {
+  id: string;
+  productId: string;
+  productName: string;
+  productCode: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  createdAt: string;
+}
+
 export interface WorkOrderTaskResponse {
   id: string;
   description: string;
@@ -32,6 +43,7 @@ export interface WorkOrderResponse {
   totalLabor: number;
   total: number;
   tasks: WorkOrderTaskResponse[];
+  parts: WorkOrderPartResponse[];
   createdAt: string;
   updatedAt: string;
 }
