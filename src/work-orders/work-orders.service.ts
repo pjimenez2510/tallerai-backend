@@ -160,6 +160,10 @@ export class WorkOrdersService {
     if (dto.estimatedDate !== undefined) {
       data.estimated_date = new Date(dto.estimatedDate);
     }
+    if (dto.clientSignature !== undefined) {
+      data.client_signature = dto.clientSignature;
+      data.signature_date = new Date();
+    }
 
     const workOrder = await this.prisma.workOrder.update({
       where: { id },
@@ -555,6 +559,8 @@ export class WorkOrdersService {
     total_parts: Prisma.Decimal;
     total_labor: Prisma.Decimal;
     total: Prisma.Decimal;
+    client_signature: string | null;
+    signature_date: Date | null;
     tasks: Array<{
       id: string;
       description: string;
@@ -597,6 +603,8 @@ export class WorkOrdersService {
       totalParts: Number(wo.total_parts),
       totalLabor: Number(wo.total_labor),
       total: Number(wo.total),
+      clientSignature: wo.client_signature ?? null,
+      signatureDate: wo.signature_date?.toISOString() ?? null,
       tasks: wo.tasks.map(
         (t): WorkOrderTaskResponse => ({
           id: t.id,

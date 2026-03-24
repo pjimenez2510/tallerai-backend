@@ -5,7 +5,9 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ClientsModule } from './clients/clients.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { ProductsModule } from './products/products.module';
+import { PublicModule } from './public/public.module';
 import { ServicesModule } from './services/services.module';
 import { UsersModule } from './users/users.module';
 import { VehiclesModule } from './vehicles/vehicles.module';
@@ -41,6 +43,8 @@ import { PrismaModule } from './prisma/prisma.module';
     VehiclesModule,
     WorkOrdersModule,
     PurchasesModule,
+    PublicModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

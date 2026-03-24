@@ -43,6 +43,8 @@ function makeWorkOrder(overrides: Partial<Record<string, unknown>> = {}) {
     total_parts: { toNumber: () => 0 },
     total_labor: { toNumber: () => 0 },
     total: { toNumber: () => 0 },
+    client_signature: null,
+    signature_date: null,
     tasks: [],
     parts: [],
     created_at: new Date('2026-01-01'),

@@ -7,6 +7,7 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  Matches,
 } from 'class-validator';
 
 export class UpdateWorkOrderDto {
@@ -56,4 +57,16 @@ export class UpdateWorkOrderDto {
     },
   )
   estimatedDate?: string;
+
+  @ApiPropertyOptional({
+    example: 'data:image/png;base64,iVBORw0KGgo...',
+    description: 'Firma digital del cliente en base64 data URL',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500000, { message: 'La firma es demasiado grande' })
+  @Matches(/^data:image\/(png|jpeg|jpg|svg\+xml);base64,/, {
+    message: 'La firma debe ser un data URL de imagen válido (PNG, JPEG o SVG)',
+  })
+  clientSignature?: string;
 }

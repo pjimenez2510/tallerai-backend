@@ -264,6 +264,8 @@ model WorkOrder {
   total_parts      Decimal           @default(0) @db.Decimal(12, 2)
   total_labor      Decimal           @default(0) @db.Decimal(12, 2)
   total            Decimal           @default(0) @db.Decimal(12, 2)
+  client_signature String?           @db.Text
+  signature_date   DateTime?
   created_at       DateTime          @default(now())
   updated_at       DateTime          @updatedAt
 
