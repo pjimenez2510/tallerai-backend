@@ -38,7 +38,8 @@ model Tenant {
   updated_at DateTime @updatedAt
 
   // Relations
-  users User[]
+  users   User[]
+  clients Client[]
 
   @@map("tenants")
 }
@@ -64,6 +65,40 @@ model User {
   @@index([tenant_id, role])
   @@index([tenant_id, is_active])
   @@map("users")
+}
+
+// ==========================================
+// CLIENTES Y VEHICULOS
+// ==========================================
+
+enum DocumentType {
+  cedula
+  ruc
+  pasaporte
+}
+
+model Client {
+  id              String       @id @default(uuid())
+  tenant_id       String
+  document_type   DocumentType @default(cedula)
+  document_number String       @db.VarChar(20)
+  name            String       @db.VarChar(200)
+  email           String?      @db.VarChar(200)
+  phone           String?      @db.VarChar(20)
+  phone_secondary String?      @db.VarChar(20)
+  address         String?      @db.VarChar(500)
+  notes           String?      @db.VarChar(2000)
+  is_active       Boolean      @default(true)
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@unique([tenant_id, document_number])
+  @@index([tenant_id, is_active])
+  @@index([tenant_id, name])
+  @@map("clients")
 }
 
 model RefreshToken {
