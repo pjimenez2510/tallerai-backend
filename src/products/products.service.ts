@@ -241,6 +241,48 @@ export class ProductsService {
     return this.mapMovement(movement);
   }
 
+  async getReport(): Promise<{
+    totalProducts: number;
+    totalValue: number;
+    lowStockCount: number;
+    categorySummary: Array<{ category: string; count: number; value: number }>;
+  }> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    const products = await this.prisma.product.findMany({
+      where: { tenant_id: tenantId, is_active: true },
+    });
+
+    const totalProducts = products.length;
+    const totalValue = products.reduce(
+      (sum, p) => sum + Number(p.cost_price) * p.stock,
+      0,
+    );
+    const lowStockCount = products.filter(
+      (p) => p.min_stock > 0 && p.stock <= p.min_stock,
+    ).length;
+
+    const categoryMap = new Map<string, { count: number; value: number }>();
+    for (const p of products) {
+      const cat = p.category ?? 'Sin categoría';
+      const existing = categoryMap.get(cat) ?? { count: 0, value: 0 };
+      categoryMap.set(cat, {
+        count: existing.count + 1,
+        value: existing.value + Number(p.cost_price) * p.stock,
+      });
+    }
+
+    const categorySummary = Array.from(categoryMap.entries()).map(
+      ([category, stats]) => ({
+        category,
+        count: stats.count,
+        value: stats.value,
+      }),
+    );
+
+    return { totalProducts, totalValue, lowStockCount, categorySummary };
+  }
+
   async getMovements(productId: string): Promise<StockMovementResponse[]> {
     const tenantId = this.tenantContext.getTenantId();
 

@@ -82,6 +82,18 @@ export class ProductsController {
     return { message: 'Productos con stock bajo', data };
   }
 
+  @Get('report')
+  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @ApiOperation({
+    summary:
+      'Reporte de inventario: totales, valor, stock bajo y resumen por categoría',
+  })
+  @ApiResponse({ status: 200, description: 'Reporte de inventario' })
+  async getReport() {
+    const data = await this.productsService.getReport();
+    return { message: 'Reporte de inventario obtenido exitosamente', data };
+  }
+
   @Get(':id')
   @Roles(
     UserRole.admin,

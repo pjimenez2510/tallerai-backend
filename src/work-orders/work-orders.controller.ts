@@ -65,6 +65,44 @@ export class WorkOrdersController {
     return { message: 'Órdenes de trabajo obtenidas exitosamente', data };
   }
 
+  @Get('by-client/:clientId')
+  @Roles(
+    UserRole.admin,
+    UserRole.jefe_taller,
+    UserRole.recepcionista,
+    UserRole.mecanico,
+  )
+  @ApiOperation({ summary: 'Listar órdenes de trabajo de un cliente' })
+  @ApiParam({ name: 'clientId', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Lista de OTs del cliente' })
+  @ApiResponse({ status: 404, description: 'Cliente no encontrado' })
+  async findByClient(@Param('clientId', ParseUUIDPipe) clientId: string) {
+    const data = await this.workOrdersService.findByClient(clientId);
+    return {
+      message: 'Órdenes de trabajo del cliente obtenidas exitosamente',
+      data,
+    };
+  }
+
+  @Get('by-vehicle/:vehicleId')
+  @Roles(
+    UserRole.admin,
+    UserRole.jefe_taller,
+    UserRole.recepcionista,
+    UserRole.mecanico,
+  )
+  @ApiOperation({ summary: 'Listar órdenes de trabajo de un vehículo' })
+  @ApiParam({ name: 'vehicleId', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Lista de OTs del vehículo' })
+  @ApiResponse({ status: 404, description: 'Vehículo no encontrado' })
+  async findByVehicle(@Param('vehicleId', ParseUUIDPipe) vehicleId: string) {
+    const data = await this.workOrdersService.findByVehicle(vehicleId);
+    return {
+      message: 'Órdenes de trabajo del vehículo obtenidas exitosamente',
+      data,
+    };
+  }
+
   @Get(':id')
   @Roles(
     UserRole.admin,
