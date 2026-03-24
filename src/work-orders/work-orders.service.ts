@@ -19,6 +19,11 @@ import {
   WorkOrderResponse,
   WorkOrderTaskResponse,
 } from './interfaces/work-order-response.interface';
+import {
+  QuoteResponse,
+  QuoteTaskItem,
+  QuotePartItem,
+} from './interfaces/quote-response.interface';
 
 const VALID_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
   recepcion: [WorkOrderStatus.diagnostico, WorkOrderStatus.cancelado],
@@ -435,6 +440,99 @@ export class WorkOrdersService {
       { workOrderId, partId, tenantId },
       'Part removed from work order',
     );
+  }
+
+  async getQuote(id: string): Promise<QuoteResponse> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: { id, tenant_id: tenantId },
+      include: {
+        tenant: {
+          select: {
+            name: true,
+            ruc: true,
+            phone: true,
+            address: true,
+          },
+        },
+        client: {
+          select: {
+            name: true,
+            document_number: true,
+            phone: true,
+            email: true,
+          },
+        },
+        vehicle: {
+          select: {
+            plate: true,
+            brand: true,
+            model: true,
+            year: true,
+            color: true,
+          },
+        },
+        mechanic: true,
+        tasks: { orderBy: { sort_order: 'asc' as const } },
+        parts: {
+          include: { product: { select: { name: true, code: true } } },
+          orderBy: { created_at: 'asc' as const },
+        },
+      },
+    });
+
+    if (!workOrder) {
+      throw new NotFoundException('Orden de trabajo no encontrada');
+    }
+
+    const IVA_RATE = 0.12;
+
+    const tasks: QuoteTaskItem[] = workOrder.tasks.map((t) => ({
+      description: t.description,
+      laborCost: Number(t.labor_cost),
+    }));
+
+    const parts: QuotePartItem[] = workOrder.parts.map((p) => ({
+      productName: p.product.name,
+      productCode: p.product.code,
+      quantity: p.quantity,
+      unitPrice: Number(p.unit_price),
+      total: Number(p.total),
+    }));
+
+    const subtotalParts = parts.reduce((sum, p) => sum + p.total, 0);
+    const subtotalLabor = tasks.reduce((sum, t) => sum + t.laborCost, 0);
+    const subtotal = subtotalParts + subtotalLabor;
+    const iva = Math.round(subtotal * IVA_RATE * 100) / 100;
+    const total = Math.round((subtotal + iva) * 100) / 100;
+
+    return {
+      orderNumber: workOrder.order_number,
+      date: workOrder.created_at.toISOString(),
+      tenantName: workOrder.tenant.name,
+      tenantRuc: workOrder.tenant.ruc,
+      tenantPhone: workOrder.tenant.phone,
+      tenantAddress: workOrder.tenant.address,
+      clientName: workOrder.client.name,
+      clientDocument: workOrder.client.document_number,
+      clientPhone: workOrder.client.phone,
+      clientEmail: workOrder.client.email,
+      vehiclePlate: workOrder.vehicle.plate,
+      vehicleBrand: workOrder.vehicle.brand,
+      vehicleModel: workOrder.vehicle.model,
+      vehicleYear: workOrder.vehicle.year,
+      vehicleColor: workOrder.vehicle.color,
+      mileageIn: workOrder.mileage_in,
+      description: workOrder.description,
+      tasks,
+      parts,
+      subtotalParts,
+      subtotalLabor,
+      subtotal,
+      iva,
+      total,
+    };
   }
 
   private validateTransition(
