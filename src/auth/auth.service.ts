@@ -302,7 +302,10 @@ export class AuthService {
       user.password_hash,
     );
     if (!currentValid) {
-      this.logger.warn({ userId }, 'Change password failed: invalid current password');
+      this.logger.warn(
+        { userId },
+        'Change password failed: invalid current password',
+      );
       throw new BadRequestException('La contraseña actual es incorrecta');
     }
 

@@ -126,9 +126,14 @@ export class ProductsController {
 
   @Post(':id/stock')
   @Roles(UserRole.admin, UserRole.jefe_taller)
-  @ApiOperation({ summary: 'Registrar movimiento de stock (ingreso, salida, ajuste)' })
+  @ApiOperation({
+    summary: 'Registrar movimiento de stock (ingreso, salida, ajuste)',
+  })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
-  @ApiResponse({ status: 201, description: 'Movimiento registrado y stock actualizado' })
+  @ApiResponse({
+    status: 201,
+    description: 'Movimiento registrado y stock actualizado',
+  })
   @ApiResponse({ status: 400, description: 'Stock insuficiente para salida' })
   @ApiResponse({ status: 404, description: 'Producto no encontrado' })
   async addStockMovement(

@@ -195,10 +195,7 @@ export class ProductsService {
       throw new NotFoundException('Producto no encontrado');
     }
 
-    if (
-      dto.type === StockMovementType.salida &&
-      product.stock < dto.quantity
-    ) {
+    if (dto.type === StockMovementType.salida && product.stock < dto.quantity) {
       throw new BadRequestException(
         `Stock insuficiente. Disponible: ${product.stock}, solicitado: ${dto.quantity}`,
       );

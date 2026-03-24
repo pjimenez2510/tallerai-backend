@@ -201,7 +201,10 @@ export class WorkOrdersService {
 
     await this.recalculateTotals(workOrderId);
 
-    this.logger.info({ workOrderId, taskId: task.id, tenantId }, 'Task added to work order');
+    this.logger.info(
+      { workOrderId, taskId: task.id, tenantId },
+      'Task added to work order',
+    );
 
     return {
       id: task.id,
@@ -225,7 +228,9 @@ export class WorkOrdersService {
       where: { id: taskId, work_order_id: workOrderId },
     });
     if (!existing) {
-      throw new NotFoundException('Tarea no encontrada en esta orden de trabajo');
+      throw new NotFoundException(
+        'Tarea no encontrada en esta orden de trabajo',
+      );
     }
 
     const data: Record<string, unknown> = {};
@@ -261,16 +266,24 @@ export class WorkOrdersService {
       where: { id: taskId, work_order_id: workOrderId },
     });
     if (!existing) {
-      throw new NotFoundException('Tarea no encontrada en esta orden de trabajo');
+      throw new NotFoundException(
+        'Tarea no encontrada en esta orden de trabajo',
+      );
     }
 
     await this.prisma.workOrderTask.delete({ where: { id: taskId } });
     await this.recalculateTotals(workOrderId);
 
-    this.logger.info({ workOrderId, taskId, tenantId }, 'Task removed from work order');
+    this.logger.info(
+      { workOrderId, taskId, tenantId },
+      'Task removed from work order',
+    );
   }
 
-  async addPart(workOrderId: string, dto: AddPartDto): Promise<WorkOrderPartResponse> {
+  async addPart(
+    workOrderId: string,
+    dto: AddPartDto,
+  ): Promise<WorkOrderPartResponse> {
     const tenantId = this.tenantContext.getTenantId();
     await this.assertWorkOrderExists(workOrderId, tenantId);
 
@@ -351,7 +364,9 @@ export class WorkOrdersService {
       include: { product: true },
     });
     if (!part) {
-      throw new NotFoundException('Repuesto no encontrado en esta orden de trabajo');
+      throw new NotFoundException(
+        'Repuesto no encontrado en esta orden de trabajo',
+      );
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -381,7 +396,10 @@ export class WorkOrdersService {
 
     await this.recalculateTotals(workOrderId);
 
-    this.logger.info({ workOrderId, partId, tenantId }, 'Part removed from work order');
+    this.logger.info(
+      { workOrderId, partId, tenantId },
+      'Part removed from work order',
+    );
   }
 
   private validateTransition(

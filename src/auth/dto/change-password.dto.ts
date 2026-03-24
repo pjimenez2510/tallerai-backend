@@ -14,10 +14,13 @@ export class ChangePasswordDto {
     example: 'NewPassword456!',
     minLength: 8,
     maxLength: 128,
-    description: 'Nueva contraseña. Debe contener mayúscula, minúscula y número',
+    description:
+      'Nueva contraseña. Debe contener mayúscula, minúscula y número',
   })
   @IsString()
-  @MinLength(8, { message: 'La nueva contraseña debe tener al menos 8 caracteres' })
+  @MinLength(8, {
+    message: 'La nueva contraseña debe tener al menos 8 caracteres',
+  })
   @MaxLength(128)
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/, {
     message:

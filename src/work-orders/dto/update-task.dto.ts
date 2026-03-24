@@ -10,14 +10,20 @@ import {
 } from 'class-validator';
 
 export class UpdateTaskDto {
-  @ApiPropertyOptional({ example: 'Cambio de pastillas y discos', maxLength: 1000 })
+  @ApiPropertyOptional({
+    example: 'Cambio de pastillas y discos',
+    maxLength: 1000,
+  })
   @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(1000)
   description?: string;
 
-  @ApiPropertyOptional({ example: true, description: 'Marcar tarea como completada' })
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Marcar tarea como completada',
+  })
   @IsOptional()
   @IsBoolean()
   isCompleted?: boolean;

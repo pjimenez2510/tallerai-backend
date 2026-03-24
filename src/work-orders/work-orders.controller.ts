@@ -101,7 +101,12 @@ export class WorkOrdersController {
   // ===== Tasks =====
 
   @Post(':id/tasks')
-  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista, UserRole.mecanico)
+  @Roles(
+    UserRole.admin,
+    UserRole.jefe_taller,
+    UserRole.recepcionista,
+    UserRole.mecanico,
+  )
   @ApiOperation({ summary: 'Agregar tarea a una orden de trabajo' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 201, description: 'Tarea agregada' })
@@ -115,7 +120,12 @@ export class WorkOrdersController {
   }
 
   @Patch(':woId/tasks/:taskId')
-  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista, UserRole.mecanico)
+  @Roles(
+    UserRole.admin,
+    UserRole.jefe_taller,
+    UserRole.recepcionista,
+    UserRole.mecanico,
+  )
   @ApiOperation({ summary: 'Actualizar tarea de una orden de trabajo' })
   @ApiParam({ name: 'woId', type: 'string', format: 'uuid' })
   @ApiParam({ name: 'taskId', type: 'string', format: 'uuid' })
@@ -149,10 +159,20 @@ export class WorkOrdersController {
   // ===== Parts =====
 
   @Post(':id/parts')
-  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista, UserRole.mecanico)
-  @ApiOperation({ summary: 'Agregar repuesto a OT (descuenta stock automáticamente)' })
+  @Roles(
+    UserRole.admin,
+    UserRole.jefe_taller,
+    UserRole.recepcionista,
+    UserRole.mecanico,
+  )
+  @ApiOperation({
+    summary: 'Agregar repuesto a OT (descuenta stock automáticamente)',
+  })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
-  @ApiResponse({ status: 201, description: 'Repuesto agregado y stock descontado' })
+  @ApiResponse({
+    status: 201,
+    description: 'Repuesto agregado y stock descontado',
+  })
   @ApiResponse({ status: 400, description: 'Stock insuficiente' })
   @ApiResponse({ status: 404, description: 'OT o producto no encontrado' })
   async addPart(
@@ -160,7 +180,10 @@ export class WorkOrdersController {
     @Body() dto: AddPartDto,
   ) {
     const data = await this.workOrdersService.addPart(id, dto);
-    return { message: 'Repuesto agregado y stock descontado exitosamente', data };
+    return {
+      message: 'Repuesto agregado y stock descontado exitosamente',
+      data,
+    };
   }
 
   @Delete(':woId/parts/:partId')
@@ -169,13 +192,19 @@ export class WorkOrdersController {
   @ApiOperation({ summary: 'Eliminar repuesto de OT (restaura stock)' })
   @ApiParam({ name: 'woId', type: 'string', format: 'uuid' })
   @ApiParam({ name: 'partId', type: 'string', format: 'uuid' })
-  @ApiResponse({ status: 200, description: 'Repuesto eliminado y stock restaurado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Repuesto eliminado y stock restaurado',
+  })
   @ApiResponse({ status: 404, description: 'Repuesto u OT no encontrado' })
   async removePart(
     @Param('woId', ParseUUIDPipe) woId: string,
     @Param('partId', ParseUUIDPipe) partId: string,
   ) {
     await this.workOrdersService.removePart(woId, partId);
-    return { message: 'Repuesto eliminado y stock restaurado exitosamente', data: null };
+    return {
+      message: 'Repuesto eliminado y stock restaurado exitosamente',
+      data: null,
+    };
   }
 }
