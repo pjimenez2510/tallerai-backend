@@ -38,8 +38,9 @@ model Tenant {
   updated_at DateTime @updatedAt
 
   // Relations
-  users   User[]
-  clients Client[]
+  users    User[]
+  clients  Client[]
+  vehicles Vehicle[]
 
   @@map("tenants")
 }
@@ -93,12 +94,43 @@ model Client {
   updated_at      DateTime     @updatedAt
 
   // Relations
-  tenant Tenant @relation(fields: [tenant_id], references: [id])
+  tenant   Tenant    @relation(fields: [tenant_id], references: [id])
+  vehicles Vehicle[]
 
   @@unique([tenant_id, document_number])
   @@index([tenant_id, is_active])
   @@index([tenant_id, name])
   @@map("clients")
+}
+
+model Vehicle {
+  id           String   @id @default(uuid())
+  tenant_id    String
+  client_id    String
+  plate        String   @db.VarChar(10)
+  brand        String   @db.VarChar(100)
+  model        String   @db.VarChar(100)
+  year         Int
+  color        String?  @db.VarChar(50)
+  vin          String?  @db.VarChar(17)
+  engine       String?  @db.VarChar(100)
+  transmission String?  @db.VarChar(50)
+  fuel_type    String?  @db.VarChar(30)
+  mileage      Int      @default(0)
+  notes        String?  @db.VarChar(2000)
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+  client Client @relation(fields: [client_id], references: [id])
+
+  @@unique([tenant_id, plate])
+  @@index([tenant_id, client_id])
+  @@index([tenant_id, is_active])
+  @@index([tenant_id, plate])
+  @@map("vehicles")
 }
 
 model RefreshToken {

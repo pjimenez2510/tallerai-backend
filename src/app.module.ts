@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ClientsModule } from './clients/clients.module';
 import { UsersModule } from './users/users.module';
+import { VehiclesModule } from './vehicles/vehicles.module';
 import { appConfig } from './config/app.config';
 import { databaseConfig } from './config/database.config';
 import { jwtConfig } from './config/jwt.config';
@@ -31,6 +32,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     ClientsModule,
     UsersModule,
+    VehiclesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
