@@ -103,6 +103,22 @@ export class WorkOrdersController {
     };
   }
 
+  @Get(':id/quote')
+  @Roles(
+    UserRole.admin,
+    UserRole.jefe_taller,
+    UserRole.recepcionista,
+    UserRole.mecanico,
+  )
+  @ApiOperation({ summary: 'Generar cotización de orden de trabajo' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Cotización generada' })
+  @ApiResponse({ status: 404, description: 'OT no encontrada' })
+  async getQuote(@Param('id', ParseUUIDPipe) id: string) {
+    const data = await this.workOrdersService.getQuote(id);
+    return { message: 'Cotización generada exitosamente', data };
+  }
+
   @Get(':id')
   @Roles(
     UserRole.admin,

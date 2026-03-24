@@ -1,3 +1,5 @@
+import { WorkOrderStatus } from '@prisma/client';
+
 export interface WorkOrdersByStatus {
   recepcion: number;
   diagnostico: number;
@@ -6,6 +8,19 @@ export interface WorkOrdersByStatus {
   completado: number;
   entregado: number;
   cancelado: number;
+}
+
+export interface RecentWorkOrderItem {
+  orderNumber: string;
+  clientName: string;
+  vehiclePlate: string;
+  status: WorkOrderStatus;
+  createdAt: string;
+}
+
+export interface TopMechanicItem {
+  name: string;
+  completedCount: number;
 }
 
 export interface DashboardMetrics {
@@ -30,4 +45,6 @@ export interface DashboardMetrics {
     totalLabor: number;
     total: number;
   };
+  recentWorkOrders: RecentWorkOrderItem[];
+  topMechanics: TopMechanicItem[];
 }

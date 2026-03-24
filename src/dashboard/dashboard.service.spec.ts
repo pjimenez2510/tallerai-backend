@@ -13,6 +13,7 @@ const mockPrisma = {
   workOrder: {
     groupBy: jest.fn(),
     aggregate: jest.fn(),
+    findMany: jest.fn(),
   },
   client: {
     count: jest.fn(),
@@ -21,6 +22,9 @@ const mockPrisma = {
     count: jest.fn(),
   },
   product: {
+    findMany: jest.fn(),
+  },
+  user: {
     findMany: jest.fn(),
   },
 };
@@ -38,20 +42,13 @@ describe('DashboardService', () => {
 
   describe('getMetrics', () => {
     it('should return full metrics for tenant', async () => {
-      mockPrisma.workOrder.groupBy.mockResolvedValue([
-        {
-          status: WorkOrderStatus.recepcion,
-          _count: { status: 3 },
-        },
-        {
-          status: WorkOrderStatus.en_progreso,
-          _count: { status: 2 },
-        },
-        {
-          status: WorkOrderStatus.completado,
-          _count: { status: 5 },
-        },
-      ]);
+      mockPrisma.workOrder.groupBy
+        .mockResolvedValueOnce([
+          { status: WorkOrderStatus.recepcion, _count: { status: 3 } },
+          { status: WorkOrderStatus.en_progreso, _count: { status: 2 } },
+          { status: WorkOrderStatus.completado, _count: { status: 5 } },
+        ])
+        .mockResolvedValueOnce([]);
 
       mockPrisma.client.count
         .mockResolvedValueOnce(42)
@@ -73,6 +70,9 @@ describe('DashboardService', () => {
         },
       });
 
+      mockPrisma.workOrder.findMany.mockResolvedValue([]);
+      mockPrisma.user.findMany.mockResolvedValue([]);
+
       const result = await service.getMetrics();
 
       expect(result.workOrders.total).toBe(10);
@@ -89,6 +89,9 @@ describe('DashboardService', () => {
       expect(result.inventory.totalProducts).toBe(3);
       expect(result.inventory.lowStockCount).toBe(2);
 
+      expect(result.recentWorkOrders).toEqual([]);
+      expect(result.topMechanics).toEqual([]);
+
       expect(mockPrisma.workOrder.groupBy).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { tenant_id: TENANT_ID },
@@ -104,6 +107,8 @@ describe('DashboardService', () => {
       mockPrisma.workOrder.aggregate.mockResolvedValue({
         _sum: { total_parts: null, total_labor: null, total: null },
       });
+      mockPrisma.workOrder.findMany.mockResolvedValue([]);
+      mockPrisma.user.findMany.mockResolvedValue([]);
 
       await service.getMetrics();
 
@@ -135,6 +140,8 @@ describe('DashboardService', () => {
       mockPrisma.workOrder.aggregate.mockResolvedValue({
         _sum: { total_parts: null, total_labor: null, total: null },
       });
+      mockPrisma.workOrder.findMany.mockResolvedValue([]);
+      mockPrisma.user.findMany.mockResolvedValue([]);
 
       const result = await service.getMetrics();
 
@@ -151,6 +158,8 @@ describe('DashboardService', () => {
       mockPrisma.workOrder.aggregate.mockResolvedValue({
         _sum: { total_parts: null, total_labor: null, total: null },
       });
+      mockPrisma.workOrder.findMany.mockResolvedValue([]);
+      mockPrisma.user.findMany.mockResolvedValue([]);
 
       const result = await service.getMetrics();
 
