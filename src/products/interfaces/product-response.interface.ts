@@ -1,3 +1,18 @@
+import { StockMovementType } from '@prisma/client';
+
+export interface StockMovementResponse {
+  id: string;
+  productId: string;
+  type: StockMovementType;
+  quantity: number;
+  previousStock: number;
+  newStock: number;
+  unitCost: number | null;
+  reference: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
 export interface ProductResponse {
   id: string;
   code: string;
