@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -16,9 +17,11 @@ import {
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import {
   LoginResponse,
@@ -104,5 +107,39 @@ export class AuthController {
   ): Promise<{ message: string; data: MeResponse }> {
     const data = await this.authService.getMe(user.id, user.tenantId);
     return { message: 'Perfil obtenido exitosamente', data };
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Update own profile (name, phone, avatar_url)' })
+  @ApiResponse({ status: 200, description: 'Profile updated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async updateProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateProfileDto,
+  ): Promise<{ message: string; data: MeResponse }> {
+    const data = await this.authService.updateProfile(
+      user.id,
+      user.tenantId,
+      dto,
+    );
+    return { message: 'Perfil actualizado exitosamente', data };
+  }
+
+  @Patch('password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Change own password' })
+  @ApiResponse({ status: 200, description: 'Password changed' })
+  @ApiResponse({ status: 400, description: 'Current password incorrect' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<{ message: string; data: null }> {
+    await this.authService.changePassword(user.id, dto);
+    return { message: 'Contraseña cambiada exitosamente', data: null };
   }
 }

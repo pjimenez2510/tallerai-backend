@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -10,9 +11,11 @@ import * as bcrypt from 'bcrypt';
 import type { StringValue } from 'ms';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PrismaService } from '../prisma/prisma.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import {
   AuthTenantPayload,
   AuthUserPayload,
@@ -244,6 +247,75 @@ export class AuthService {
       tenantId: user.tenant_id,
       tenantName: user.tenant.name,
     };
+  }
+
+  async updateProfile(
+    userId: string,
+    tenantId: string,
+    dto: UpdateProfileDto,
+  ): Promise<MeResponse> {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, tenant_id: tenantId, is_active: true },
+      include: { tenant: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo');
+    }
+
+    const data: Record<string, unknown> = {};
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.phone !== undefined) data.phone = dto.phone;
+    if (dto.avatarUrl !== undefined) data.avatar_url = dto.avatarUrl;
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data,
+      include: { tenant: true },
+    });
+
+    this.logger.info({ userId, tenantId }, 'User profile updated');
+
+    return {
+      id: updated.id,
+      name: updated.name,
+      email: updated.email,
+      role: updated.role,
+      phone: updated.phone,
+      avatarUrl: updated.avatar_url,
+      tenantId: updated.tenant_id,
+      tenantName: updated.tenant.name,
+    };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, is_active: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo');
+    }
+
+    const currentValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.password_hash,
+    );
+    if (!currentValid) {
+      this.logger.warn(
+        { userId },
+        'Change password failed: invalid current password',
+      );
+      throw new BadRequestException('La contraseña actual es incorrecta');
+    }
+
+    const newPasswordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password_hash: newPasswordHash },
+    });
+
+    this.logger.info({ userId }, 'User password changed');
   }
 
   // === Private helpers ===

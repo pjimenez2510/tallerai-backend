@@ -1,15 +1,20 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, StockMovementType } from '@prisma/client';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/tenant/tenant.context';
+import { CreateStockMovementDto } from './dto/create-stock-movement.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { ProductResponse } from './interfaces/product-response.interface';
+import {
+  ProductResponse,
+  StockMovementResponse,
+} from './interfaces/product-response.interface';
 
 @Injectable()
 export class ProductsService {
@@ -177,6 +182,83 @@ export class ProductsService {
     return lowStock.map((p) => this.mapProduct(p));
   }
 
+  async addStockMovement(
+    productId: string,
+    dto: CreateStockMovementDto,
+  ): Promise<StockMovementResponse> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, tenant_id: tenantId },
+    });
+    if (!product) {
+      throw new NotFoundException('Producto no encontrado');
+    }
+
+    if (dto.type === StockMovementType.salida && product.stock < dto.quantity) {
+      throw new BadRequestException(
+        `Stock insuficiente. Disponible: ${product.stock}, solicitado: ${dto.quantity}`,
+      );
+    }
+
+    const previousStock = product.stock;
+    let newStock: number;
+    if (dto.type === StockMovementType.ingreso) {
+      newStock = previousStock + dto.quantity;
+    } else if (dto.type === StockMovementType.salida) {
+      newStock = previousStock - dto.quantity;
+    } else {
+      // ajuste: set stock to dto.quantity directly
+      newStock = dto.quantity;
+    }
+
+    const movement = await this.prisma.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id: productId },
+        data: { stock: newStock },
+      });
+
+      return tx.stockMovement.create({
+        data: {
+          tenant_id: tenantId,
+          product_id: productId,
+          type: dto.type,
+          quantity: dto.quantity,
+          previous_stock: previousStock,
+          new_stock: newStock,
+          unit_cost: dto.unitCost,
+          reference: dto.reference,
+          notes: dto.notes,
+        },
+      });
+    });
+
+    this.logger.info(
+      { productId, movementId: movement.id, type: dto.type, tenantId },
+      'Stock movement created',
+    );
+
+    return this.mapMovement(movement);
+  }
+
+  async getMovements(productId: string): Promise<StockMovementResponse[]> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, tenant_id: tenantId },
+    });
+    if (!product) {
+      throw new NotFoundException('Producto no encontrado');
+    }
+
+    const movements = await this.prisma.stockMovement.findMany({
+      where: { product_id: productId, tenant_id: tenantId },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return movements.map((m) => this.mapMovement(m));
+  }
+
   private async assertCodeNotTaken(
     code: string,
     tenantId: string,
@@ -189,6 +271,32 @@ export class ProductsService {
         'Ya existe un producto con este código en el taller',
       );
     }
+  }
+
+  private mapMovement(movement: {
+    id: string;
+    product_id: string;
+    type: StockMovementType;
+    quantity: number;
+    previous_stock: number;
+    new_stock: number;
+    unit_cost: Prisma.Decimal | null;
+    reference: string | null;
+    notes: string | null;
+    created_at: Date;
+  }): StockMovementResponse {
+    return {
+      id: movement.id,
+      productId: movement.product_id,
+      type: movement.type,
+      quantity: movement.quantity,
+      previousStock: movement.previous_stock,
+      newStock: movement.new_stock,
+      unitCost: movement.unit_cost !== null ? Number(movement.unit_cost) : null,
+      reference: movement.reference,
+      notes: movement.notes,
+      createdAt: movement.created_at.toISOString(),
+    };
   }
 
   private mapProduct(product: {

@@ -20,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard, Roles, RolesGuard } from '../auth';
+import { CreateStockMovementDto } from './dto/create-stock-movement.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
@@ -121,5 +122,36 @@ export class ProductsController {
   async deactivate(@Param('id', ParseUUIDPipe) id: string) {
     const data = await this.productsService.deactivate(id);
     return { message: 'Producto desactivado exitosamente', data };
+  }
+
+  @Post(':id/stock')
+  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @ApiOperation({
+    summary: 'Registrar movimiento de stock (ingreso, salida, ajuste)',
+  })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({
+    status: 201,
+    description: 'Movimiento registrado y stock actualizado',
+  })
+  @ApiResponse({ status: 400, description: 'Stock insuficiente para salida' })
+  @ApiResponse({ status: 404, description: 'Producto no encontrado' })
+  async addStockMovement(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateStockMovementDto,
+  ) {
+    const data = await this.productsService.addStockMovement(id, dto);
+    return { message: 'Movimiento de stock registrado exitosamente', data };
+  }
+
+  @Get(':id/movements')
+  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista)
+  @ApiOperation({ summary: 'Listar movimientos de stock de un producto' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Lista de movimientos' })
+  @ApiResponse({ status: 404, description: 'Producto no encontrado' })
+  async getMovements(@Param('id', ParseUUIDPipe) id: string) {
+    const data = await this.productsService.getMovements(id);
+    return { message: 'Movimientos obtenidos exitosamente', data };
   }
 }

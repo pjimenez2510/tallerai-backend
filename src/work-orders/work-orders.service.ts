@@ -3,14 +3,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { StockMovementType } from '@prisma/client';
 import { WorkOrderStatus } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/tenant/tenant.context';
+import { AddPartDto } from './dto/add-part.dto';
+import { CreateTaskDto } from './dto/create-task.dto';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
+import { UpdateTaskDto } from './dto/update-task.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import {
+  WorkOrderPartResponse,
   WorkOrderResponse,
   WorkOrderTaskResponse,
 } from './interfaces/work-order-response.interface';
@@ -30,6 +35,10 @@ const INCLUDE_RELATIONS = {
   vehicle: true,
   mechanic: true,
   tasks: { orderBy: { sort_order: 'asc' as const } },
+  parts: {
+    include: { product: { select: { name: true, code: true } } },
+    orderBy: { created_at: 'asc' as const },
+  },
 };
 
 @Injectable()
@@ -167,6 +176,232 @@ export class WorkOrdersService {
     return this.mapWorkOrder(workOrder);
   }
 
+  async addTask(
+    workOrderId: string,
+    dto: CreateTaskDto,
+  ): Promise<WorkOrderTaskResponse> {
+    const tenantId = this.tenantContext.getTenantId();
+    await this.assertWorkOrderExists(workOrderId, tenantId);
+
+    const lastTask = await this.prisma.workOrderTask.findFirst({
+      where: { work_order_id: workOrderId },
+      orderBy: { sort_order: 'desc' },
+    });
+    const sortOrder = (lastTask?.sort_order ?? 0) + 1;
+
+    const task = await this.prisma.workOrderTask.create({
+      data: {
+        work_order_id: workOrderId,
+        description: dto.description,
+        labor_hours: dto.laborHours ?? 0,
+        labor_cost: dto.laborCost ?? 0,
+        sort_order: sortOrder,
+      },
+    });
+
+    await this.recalculateTotals(workOrderId);
+
+    this.logger.info(
+      { workOrderId, taskId: task.id, tenantId },
+      'Task added to work order',
+    );
+
+    return {
+      id: task.id,
+      description: task.description,
+      isCompleted: task.is_completed,
+      laborHours: Number(task.labor_hours),
+      laborCost: Number(task.labor_cost),
+      sortOrder: task.sort_order,
+    };
+  }
+
+  async updateTask(
+    workOrderId: string,
+    taskId: string,
+    dto: UpdateTaskDto,
+  ): Promise<WorkOrderTaskResponse> {
+    const tenantId = this.tenantContext.getTenantId();
+    await this.assertWorkOrderExists(workOrderId, tenantId);
+
+    const existing = await this.prisma.workOrderTask.findFirst({
+      where: { id: taskId, work_order_id: workOrderId },
+    });
+    if (!existing) {
+      throw new NotFoundException(
+        'Tarea no encontrada en esta orden de trabajo',
+      );
+    }
+
+    const data: Record<string, unknown> = {};
+    if (dto.description !== undefined) data.description = dto.description;
+    if (dto.isCompleted !== undefined) data.is_completed = dto.isCompleted;
+    if (dto.laborHours !== undefined) data.labor_hours = dto.laborHours;
+    if (dto.laborCost !== undefined) data.labor_cost = dto.laborCost;
+
+    const task = await this.prisma.workOrderTask.update({
+      where: { id: taskId },
+      data,
+    });
+
+    await this.recalculateTotals(workOrderId);
+
+    this.logger.info({ workOrderId, taskId, tenantId }, 'Task updated');
+
+    return {
+      id: task.id,
+      description: task.description,
+      isCompleted: task.is_completed,
+      laborHours: Number(task.labor_hours),
+      laborCost: Number(task.labor_cost),
+      sortOrder: task.sort_order,
+    };
+  }
+
+  async removeTask(workOrderId: string, taskId: string): Promise<void> {
+    const tenantId = this.tenantContext.getTenantId();
+    await this.assertWorkOrderExists(workOrderId, tenantId);
+
+    const existing = await this.prisma.workOrderTask.findFirst({
+      where: { id: taskId, work_order_id: workOrderId },
+    });
+    if (!existing) {
+      throw new NotFoundException(
+        'Tarea no encontrada en esta orden de trabajo',
+      );
+    }
+
+    await this.prisma.workOrderTask.delete({ where: { id: taskId } });
+    await this.recalculateTotals(workOrderId);
+
+    this.logger.info(
+      { workOrderId, taskId, tenantId },
+      'Task removed from work order',
+    );
+  }
+
+  async addPart(
+    workOrderId: string,
+    dto: AddPartDto,
+  ): Promise<WorkOrderPartResponse> {
+    const tenantId = this.tenantContext.getTenantId();
+    await this.assertWorkOrderExists(workOrderId, tenantId);
+
+    const product = await this.prisma.product.findFirst({
+      where: { id: dto.productId, tenant_id: tenantId, is_active: true },
+    });
+    if (!product) {
+      throw new NotFoundException('Producto no encontrado o inactivo');
+    }
+    if (product.stock < dto.quantity) {
+      throw new BadRequestException(
+        `Stock insuficiente. Disponible: ${product.stock}, solicitado: ${dto.quantity}`,
+      );
+    }
+
+    const part = await this.prisma.$transaction(async (tx) => {
+      const previousStock = product.stock;
+      const newStock = previousStock - dto.quantity;
+
+      await tx.product.update({
+        where: { id: dto.productId },
+        data: { stock: newStock },
+      });
+
+      await tx.stockMovement.create({
+        data: {
+          tenant_id: tenantId,
+          product_id: dto.productId,
+          type: StockMovementType.salida,
+          quantity: dto.quantity,
+          previous_stock: previousStock,
+          new_stock: newStock,
+          unit_cost: product.cost_price,
+          reference: `OT-${workOrderId}`,
+          notes: 'Descontado por uso en orden de trabajo',
+        },
+      });
+
+      const created = await tx.workOrderPart.create({
+        data: {
+          work_order_id: workOrderId,
+          product_id: dto.productId,
+          quantity: dto.quantity,
+          unit_price: product.sale_price,
+          total: Number(product.sale_price) * dto.quantity,
+        },
+        include: { product: { select: { name: true, code: true } } },
+      });
+
+      return created;
+    });
+
+    await this.recalculateTotals(workOrderId);
+
+    this.logger.info(
+      { workOrderId, partId: part.id, productId: dto.productId, tenantId },
+      'Part added to work order',
+    );
+
+    return {
+      id: part.id,
+      productId: part.product_id,
+      productName: part.product.name,
+      productCode: part.product.code,
+      quantity: part.quantity,
+      unitPrice: Number(part.unit_price),
+      total: Number(part.total),
+      createdAt: part.created_at.toISOString(),
+    };
+  }
+
+  async removePart(workOrderId: string, partId: string): Promise<void> {
+    const tenantId = this.tenantContext.getTenantId();
+    await this.assertWorkOrderExists(workOrderId, tenantId);
+
+    const part = await this.prisma.workOrderPart.findFirst({
+      where: { id: partId, work_order_id: workOrderId },
+      include: { product: true },
+    });
+    if (!part) {
+      throw new NotFoundException(
+        'Repuesto no encontrado en esta orden de trabajo',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const previousStock = part.product.stock;
+      const newStock = previousStock + part.quantity;
+
+      await tx.product.update({
+        where: { id: part.product_id },
+        data: { stock: newStock },
+      });
+
+      await tx.stockMovement.create({
+        data: {
+          tenant_id: tenantId,
+          product_id: part.product_id,
+          type: StockMovementType.ingreso,
+          quantity: part.quantity,
+          previous_stock: previousStock,
+          new_stock: newStock,
+          reference: `OT-${workOrderId}`,
+          notes: 'Restaurado por eliminación de repuesto de orden de trabajo',
+        },
+      });
+
+      await tx.workOrderPart.delete({ where: { id: partId } });
+    });
+
+    await this.recalculateTotals(workOrderId);
+
+    this.logger.info(
+      { workOrderId, partId, tenantId },
+      'Part removed from work order',
+    );
+  }
+
   private validateTransition(
     current: WorkOrderStatus,
     next: WorkOrderStatus,
@@ -200,6 +435,36 @@ export class WorkOrdersService {
     }
 
     return `${prefix}${String(nextNumber).padStart(4, '0')}`;
+  }
+
+  private async assertWorkOrderExists(
+    workOrderId: string,
+    tenantId: string,
+  ): Promise<void> {
+    const wo = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, tenant_id: tenantId },
+    });
+    if (!wo) {
+      throw new NotFoundException('Orden de trabajo no encontrada');
+    }
+  }
+
+  private async recalculateTotals(workOrderId: string): Promise<void> {
+    const tasks = await this.prisma.workOrderTask.findMany({
+      where: { work_order_id: workOrderId },
+    });
+    const parts = await this.prisma.workOrderPart.findMany({
+      where: { work_order_id: workOrderId },
+    });
+
+    const totalLabor = tasks.reduce((sum, t) => sum + Number(t.labor_cost), 0);
+    const totalParts = parts.reduce((sum, p) => sum + Number(p.total), 0);
+    const total = totalLabor + totalParts;
+
+    await this.prisma.workOrder.update({
+      where: { id: workOrderId },
+      data: { total_labor: totalLabor, total_parts: totalParts, total },
+    });
   }
 
   private async assertClientExists(
@@ -267,6 +532,15 @@ export class WorkOrdersService {
       labor_cost: Prisma.Decimal;
       sort_order: number;
     }>;
+    parts: Array<{
+      id: string;
+      product_id: string;
+      product: { name: string; code: string };
+      quantity: number;
+      unit_price: Prisma.Decimal;
+      total: Prisma.Decimal;
+      created_at: Date;
+    }>;
     created_at: Date;
     updated_at: Date;
   }): WorkOrderResponse {
@@ -300,6 +574,18 @@ export class WorkOrdersService {
           laborHours: Number(t.labor_hours),
           laborCost: Number(t.labor_cost),
           sortOrder: t.sort_order,
+        }),
+      ),
+      parts: wo.parts.map(
+        (p): WorkOrderPartResponse => ({
+          id: p.id,
+          productId: p.product_id,
+          productName: p.product.name,
+          productCode: p.product.code,
+          quantity: p.quantity,
+          unitPrice: Number(p.unit_price),
+          total: Number(p.total),
+          createdAt: p.created_at.toISOString(),
         }),
       ),
       createdAt: wo.created_at.toISOString(),

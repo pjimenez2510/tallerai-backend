@@ -44,6 +44,7 @@ function makeWorkOrder(overrides: Partial<Record<string, unknown>> = {}) {
     total_labor: { toNumber: () => 0 },
     total: { toNumber: () => 0 },
     tasks: [],
+    parts: [],
     created_at: new Date('2026-01-01'),
     updated_at: new Date('2026-01-01'),
     ...overrides,

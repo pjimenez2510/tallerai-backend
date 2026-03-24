@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ClientsModule } from './clients/clients.module';
 import { ProductsModule } from './products/products.module';
+import { ServicesModule } from './services/services.module';
 import { UsersModule } from './users/users.module';
 import { VehiclesModule } from './vehicles/vehicles.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
@@ -34,6 +35,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     ClientsModule,
     ProductsModule,
+    ServicesModule,
     UsersModule,
     VehiclesModule,
     WorkOrdersModule,
