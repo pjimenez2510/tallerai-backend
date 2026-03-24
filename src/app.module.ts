@@ -13,6 +13,7 @@ import { UsersModule } from './users/users.module';
 import { VehiclesModule } from './vehicles/vehicles.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
 import { PurchasesModule } from './purchases/purchases.module';
+import { MechanicModule } from './mechanic/mechanic.module';
 import { appConfig } from './config/app.config';
 import { databaseConfig } from './config/database.config';
 import { jwtConfig } from './config/jwt.config';
@@ -45,6 +46,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PurchasesModule,
     PublicModule,
     DashboardModule,
+    MechanicModule,
   ],
   controllers: [AppController],
   providers: [AppService],
