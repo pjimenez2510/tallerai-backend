@@ -8,6 +8,7 @@ import { ClientsModule } from './clients/clients.module';
 import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
 import { VehiclesModule } from './vehicles/vehicles.module';
+import { WorkOrdersModule } from './work-orders/work-orders.module';
 import { appConfig } from './config/app.config';
 import { databaseConfig } from './config/database.config';
 import { jwtConfig } from './config/jwt.config';
@@ -35,6 +36,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ProductsModule,
     UsersModule,
     VehiclesModule,
+    WorkOrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

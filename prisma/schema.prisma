@@ -21,6 +21,23 @@ enum UserRole {
   mecanico
 }
 
+enum WorkOrderStatus {
+  recepcion
+  diagnostico
+  aprobado
+  en_progreso
+  completado
+  entregado
+  cancelado
+}
+
+enum WorkOrderPriority {
+  baja
+  normal
+  alta
+  urgente
+}
+
 // ==========================================
 // SISTEMA / AUTENTICACION
 // ==========================================
@@ -38,10 +55,11 @@ model Tenant {
   updated_at DateTime @updatedAt
 
   // Relations
-  users    User[]
-  clients  Client[]
-  vehicles Vehicle[]
-  products Product[]
+  users       User[]
+  clients     Client[]
+  vehicles    Vehicle[]
+  products    Product[]
+  work_orders WorkOrder[]
 
   @@map("tenants")
 }
@@ -60,8 +78,9 @@ model User {
   updated_at    DateTime @updatedAt
 
   // Relations
-  tenant         Tenant         @relation(fields: [tenant_id], references: [id])
-  refresh_tokens RefreshToken[]
+  tenant              Tenant         @relation(fields: [tenant_id], references: [id])
+  refresh_tokens      RefreshToken[]
+  assigned_work_orders WorkOrder[]   @relation("assigned_mechanic")
 
   @@unique([tenant_id, email])
   @@index([tenant_id, role])
@@ -95,8 +114,9 @@ model Client {
   updated_at      DateTime     @updatedAt
 
   // Relations
-  tenant   Tenant    @relation(fields: [tenant_id], references: [id])
-  vehicles Vehicle[]
+  tenant      Tenant      @relation(fields: [tenant_id], references: [id])
+  vehicles    Vehicle[]
+  work_orders WorkOrder[]
 
   @@unique([tenant_id, document_number])
   @@index([tenant_id, is_active])
@@ -124,8 +144,9 @@ model Vehicle {
   updated_at   DateTime @updatedAt
 
   // Relations
-  tenant Tenant @relation(fields: [tenant_id], references: [id])
-  client Client @relation(fields: [client_id], references: [id])
+  tenant      Tenant      @relation(fields: [tenant_id], references: [id])
+  client      Client      @relation(fields: [client_id], references: [id])
+  work_orders WorkOrder[]
 
   @@unique([tenant_id, plate])
   @@index([tenant_id, client_id])
@@ -166,6 +187,66 @@ model Product {
   @@index([tenant_id, name])
   @@index([tenant_id, category])
   @@map("products")
+}
+
+// ==========================================
+// ORDENES DE TRABAJO
+// ==========================================
+
+model WorkOrder {
+  id               String            @id @default(uuid())
+  tenant_id        String
+  order_number     String            @db.VarChar(20)
+  client_id        String
+  vehicle_id       String
+  assigned_to      String?
+  status           WorkOrderStatus   @default(recepcion)
+  priority         WorkOrderPriority @default(normal)
+  description      String            @db.VarChar(5000)
+  diagnosis        String?           @db.VarChar(5000)
+  internal_notes   String?           @db.VarChar(5000)
+  mileage_in       Int?
+  estimated_date   DateTime?
+  completed_date   DateTime?
+  delivered_date   DateTime?
+  total_parts      Decimal           @default(0) @db.Decimal(12, 2)
+  total_labor      Decimal           @default(0) @db.Decimal(12, 2)
+  total            Decimal           @default(0) @db.Decimal(12, 2)
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
+
+  // Relations
+  tenant    Tenant     @relation(fields: [tenant_id], references: [id])
+  client    Client     @relation(fields: [client_id], references: [id])
+  vehicle   Vehicle    @relation(fields: [vehicle_id], references: [id])
+  mechanic  User?      @relation("assigned_mechanic", fields: [assigned_to], references: [id])
+  tasks     WorkOrderTask[]
+
+  @@unique([tenant_id, order_number])
+  @@index([tenant_id, status])
+  @@index([tenant_id, client_id])
+  @@index([tenant_id, vehicle_id])
+  @@index([tenant_id, assigned_to])
+  @@index([tenant_id, created_at])
+  @@map("work_orders")
+}
+
+model WorkOrderTask {
+  id            String  @id @default(uuid())
+  work_order_id String
+  description   String  @db.VarChar(500)
+  is_completed  Boolean @default(false)
+  labor_hours   Decimal @default(0) @db.Decimal(6, 2)
+  labor_cost    Decimal @default(0) @db.Decimal(12, 2)
+  sort_order    Int     @default(0)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  // Relations
+  work_order WorkOrder @relation(fields: [work_order_id], references: [id], onDelete: Cascade)
+
+  @@index([work_order_id])
+  @@map("work_order_tasks")
 }
 
 model RefreshToken {
