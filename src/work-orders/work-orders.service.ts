@@ -585,11 +585,13 @@ export class WorkOrdersService {
     const IVA_RATE = 0.12;
 
     const tasks: QuoteTaskItem[] = workOrder.tasks.map((t) => ({
+      id: t.id,
       description: t.description,
       laborCost: Number(t.labor_cost),
     }));
 
     const parts: QuotePartItem[] = workOrder.parts.map((p) => ({
+      id: p.id,
       productName: p.product.name,
       productCode: p.product.code,
       quantity: p.quantity,

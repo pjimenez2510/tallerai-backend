@@ -1,9 +1,11 @@
 export interface QuoteTaskItem {
+  id: string;
   description: string;
   laborCost: number;
 }
 
 export interface QuotePartItem {
+  id: string;
   productName: string;
   productCode: string;
   quantity: number;
