@@ -50,6 +50,7 @@ model Tenant {
   phone      String?  @db.VarChar(20)
   email      String?  @db.VarChar(200)
   logo_url   String?  @db.VarChar(1000)
+  settings   Json?    @default("{}")
   is_active  Boolean  @default(true)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -62,6 +63,7 @@ model Tenant {
   work_orders     WorkOrder[]
   services        Service[]
   purchase_orders PurchaseOrder[]
+  notifications   Notification[]
 
   @@map("tenants")
 }
@@ -83,6 +85,7 @@ model User {
   tenant              Tenant         @relation(fields: [tenant_id], references: [id])
   refresh_tokens      RefreshToken[]
   assigned_work_orders WorkOrder[]   @relation("assigned_mechanic")
+  notifications       Notification[]
 
   @@unique([tenant_id, email])
   @@index([tenant_id, role])
@@ -379,4 +382,24 @@ model RefreshToken {
   @@index([user_id])
   @@index([token_hash])
   @@map("refresh_tokens")
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  user_id    String
+  type       String   @db.VarChar(50)
+  title      String   @db.VarChar(200)
+  message    String   @db.VarChar(500)
+  is_read    Boolean  @default(false)
+  metadata   Json?
+  created_at DateTime @default(now())
+
+  // Relations
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+  user   User   @relation(fields: [user_id], references: [id])
+
+  @@index([tenant_id, user_id, is_read])
+  @@index([tenant_id, user_id, created_at])
+  @@map("notifications")
 }
