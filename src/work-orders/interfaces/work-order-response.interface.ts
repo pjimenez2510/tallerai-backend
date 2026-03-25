@@ -30,6 +30,7 @@ export interface WorkOrderResponse {
   vehicleDescription: string;
   assignedTo: string | null;
   mechanicName: string | null;
+  parentId: string | null;
   status: WorkOrderStatus;
   priority: WorkOrderPriority;
   description: string;
@@ -44,8 +45,33 @@ export interface WorkOrderResponse {
   total: number;
   tasks: WorkOrderTaskResponse[];
   parts: WorkOrderPartResponse[];
+  supplements: SupplementSummary[];
   clientSignature: string | null;
   signatureDate: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SupplementSummary {
+  id: string;
+  orderNumber: string;
+  status: WorkOrderStatus;
+  createdAt: string;
+}
+
+export interface VehicleTimelineEntry {
+  id: string;
+  orderNumber: string;
+  status: WorkOrderStatus;
+  priority: WorkOrderPriority;
+  description: string;
+  mechanicName: string | null;
+  mileageIn: number | null;
+  totalParts: number;
+  totalLabor: number;
+  total: number;
+  tasksCount: number;
+  partsCount: number;
+  completedDate: string | null;
+  createdAt: string;
 }

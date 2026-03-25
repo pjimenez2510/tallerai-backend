@@ -23,6 +23,7 @@ import {
 import { UserRole, WorkOrderStatus } from '@prisma/client';
 import { JwtAuthGuard, Roles, RolesGuard } from '../auth';
 import { AddPartDto } from './dto/add-part.dto';
+import { CreateSupplementDto } from './dto/create-supplement.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -99,6 +100,48 @@ export class WorkOrdersController {
     const data = await this.workOrdersService.findByVehicle(vehicleId);
     return {
       message: 'Órdenes de trabajo del vehículo obtenidas exitosamente',
+      data,
+    };
+  }
+
+  @Get('by-vehicle/:vehicleId/timeline')
+  @Roles(
+    UserRole.admin,
+    UserRole.jefe_taller,
+    UserRole.recepcionista,
+    UserRole.mecanico,
+  )
+  @ApiOperation({
+    summary: 'Timeline de historial de órdenes de trabajo de un vehículo',
+  })
+  @ApiParam({ name: 'vehicleId', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Timeline del vehículo' })
+  @ApiResponse({ status: 404, description: 'Vehículo no encontrado' })
+  async getVehicleTimeline(
+    @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+  ) {
+    const data = await this.workOrdersService.getVehicleTimeline(vehicleId);
+    return {
+      message: 'Timeline del vehículo obtenido exitosamente',
+      data,
+    };
+  }
+
+  @Post(':id/supplement')
+  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista)
+  @ApiOperation({
+    summary: 'Crear orden de trabajo suplementaria vinculada a la original',
+  })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 201, description: 'OT suplementaria creada' })
+  @ApiResponse({ status: 404, description: 'OT padre no encontrada' })
+  async createSupplement(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateSupplementDto,
+  ) {
+    const data = await this.workOrdersService.createSupplement(id, dto);
+    return {
+      message: 'Orden de trabajo suplementaria creada exitosamente',
       data,
     };
   }
