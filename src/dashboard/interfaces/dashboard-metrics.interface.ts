@@ -48,3 +48,21 @@ export interface DashboardMetrics {
   recentWorkOrders: RecentWorkOrderItem[];
   topMechanics: TopMechanicItem[];
 }
+
+export interface MonthlyTrendItem {
+  month: string;
+  count: number;
+}
+
+export interface StatusDistributionItem {
+  status: string;
+  count: number;
+}
+
+export interface ProductivityMetrics {
+  avgCompletionDays: number;
+  workOrdersThisMonth: number;
+  workOrdersLastMonth: number;
+  monthlyTrend: MonthlyTrendItem[];
+  statusDistribution: StatusDistributionItem[];
+}

@@ -15,10 +15,13 @@ import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import {
+  SupplementSummary,
+  VehicleTimelineEntry,
   WorkOrderPartResponse,
   WorkOrderResponse,
   WorkOrderTaskResponse,
 } from './interfaces/work-order-response.interface';
+import { CreateSupplementDto } from './dto/create-supplement.dto';
 import {
   QuoteResponse,
   QuoteTaskItem,
@@ -42,6 +45,10 @@ const INCLUDE_RELATIONS = {
   tasks: { orderBy: { sort_order: 'asc' as const } },
   parts: {
     include: { product: { select: { name: true, code: true } } },
+    orderBy: { created_at: 'asc' as const },
+  },
+  supplements: {
+    select: { id: true, order_number: true, status: true, created_at: true },
     orderBy: { created_at: 'asc' as const },
   },
 };
@@ -214,6 +221,95 @@ export class WorkOrdersService {
     });
 
     return workOrders.map((wo) => this.mapWorkOrder(wo));
+  }
+
+  async getVehicleTimeline(vehicleId: string): Promise<VehicleTimelineEntry[]> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    await this.assertVehicleExists(vehicleId, tenantId);
+
+    const workOrders = await this.prisma.workOrder.findMany({
+      where: { tenant_id: tenantId, vehicle_id: vehicleId },
+      orderBy: { created_at: 'desc' },
+      select: {
+        id: true,
+        order_number: true,
+        status: true,
+        priority: true,
+        description: true,
+        mechanic: { select: { name: true } },
+        mileage_in: true,
+        total_parts: true,
+        total_labor: true,
+        total: true,
+        completed_date: true,
+        created_at: true,
+        _count: { select: { tasks: true, parts: true } },
+      },
+    });
+
+    return workOrders.map((wo) => ({
+      id: wo.id,
+      orderNumber: wo.order_number,
+      status: wo.status,
+      priority: wo.priority,
+      description: wo.description.substring(0, 150),
+      mechanicName: wo.mechanic?.name ?? null,
+      mileageIn: wo.mileage_in,
+      totalParts: Number(wo.total_parts),
+      totalLabor: Number(wo.total_labor),
+      total: Number(wo.total),
+      tasksCount: wo._count.tasks,
+      partsCount: wo._count.parts,
+      completedDate: wo.completed_date?.toISOString() ?? null,
+      createdAt: wo.created_at.toISOString(),
+    }));
+  }
+
+  async createSupplement(
+    parentId: string,
+    dto: CreateSupplementDto,
+  ): Promise<WorkOrderResponse> {
+    const tenantId = this.tenantContext.getTenantId();
+
+    const parent = await this.prisma.workOrder.findFirst({
+      where: { id: parentId, tenant_id: tenantId },
+    });
+    if (!parent) {
+      throw new NotFoundException('Orden de trabajo padre no encontrada');
+    }
+
+    const supplementNumber = await this.generateSupplementNumber(
+      tenantId,
+      parent.order_number,
+    );
+
+    const workOrder = await this.prisma.workOrder.create({
+      data: {
+        tenant_id: tenantId,
+        order_number: supplementNumber,
+        client_id: parent.client_id,
+        vehicle_id: parent.vehicle_id,
+        assigned_to: parent.assigned_to,
+        parent_id: parentId,
+        description: dto.description,
+        priority: dto.priority ?? parent.priority,
+        status: 'recepcion',
+      },
+      include: INCLUDE_RELATIONS,
+    });
+
+    this.logger.info(
+      {
+        workOrderId: workOrder.id,
+        parentId,
+        tenantId,
+        orderNumber: supplementNumber,
+      },
+      'Supplement work order created',
+    );
+
+    return this.mapWorkOrder(workOrder);
   }
 
   async addTask(
@@ -547,6 +643,32 @@ export class WorkOrdersService {
     }
   }
 
+  private async generateSupplementNumber(
+    tenantId: string,
+    parentOrderNumber: string,
+  ): Promise<string> {
+    const prefix = `${parentOrderNumber}-S`;
+
+    const lastSupplement = await this.prisma.workOrder.findFirst({
+      where: {
+        tenant_id: tenantId,
+        order_number: { startsWith: prefix },
+      },
+      orderBy: { order_number: 'desc' },
+    });
+
+    let nextNumber = 1;
+    if (lastSupplement) {
+      const suffix = lastSupplement.order_number.replace(prefix, '');
+      const parsed = parseInt(suffix, 10);
+      if (!isNaN(parsed)) {
+        nextNumber = parsed + 1;
+      }
+    }
+
+    return `${prefix}${nextNumber}`;
+  }
+
   private async generateOrderNumber(tenantId: string): Promise<string> {
     const year = new Date().getFullYear();
     const prefix = `OT-${year}-`;
@@ -644,6 +766,7 @@ export class WorkOrdersService {
     vehicle_id: string;
     vehicle: { plate: string; brand: string; model: string; year: number };
     assigned_to: string | null;
+    parent_id: string | null;
     mechanic: { name: string } | null;
     status: WorkOrderStatus;
     priority: string;
@@ -676,6 +799,12 @@ export class WorkOrdersService {
       total: Prisma.Decimal;
       created_at: Date;
     }>;
+    supplements: Array<{
+      id: string;
+      order_number: string;
+      status: WorkOrderStatus;
+      created_at: Date;
+    }>;
     created_at: Date;
     updated_at: Date;
   }): WorkOrderResponse {
@@ -689,6 +818,7 @@ export class WorkOrdersService {
       vehicleDescription: `${wo.vehicle.brand} ${wo.vehicle.model} (${wo.vehicle.year})`,
       assignedTo: wo.assigned_to,
       mechanicName: wo.mechanic?.name ?? null,
+      parentId: wo.parent_id,
       status: wo.status,
       priority: wo.priority as WorkOrderResponse['priority'],
       description: wo.description,
@@ -723,6 +853,14 @@ export class WorkOrdersService {
           unitPrice: Number(p.unit_price),
           total: Number(p.total),
           createdAt: p.created_at.toISOString(),
+        }),
+      ),
+      supplements: wo.supplements.map(
+        (s): SupplementSummary => ({
+          id: s.id,
+          orderNumber: s.order_number,
+          status: s.status,
+          createdAt: s.created_at.toISOString(),
         }),
       ),
       createdAt: wo.created_at.toISOString(),

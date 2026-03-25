@@ -248,10 +248,11 @@ model Service {
 model WorkOrder {
   id               String            @id @default(uuid())
   tenant_id        String
-  order_number     String            @db.VarChar(20)
+  order_number     String            @db.VarChar(30)
   client_id        String
   vehicle_id       String
   assigned_to      String?
+  parent_id        String?
   status           WorkOrderStatus   @default(recepcion)
   priority         WorkOrderPriority @default(normal)
   description      String            @db.VarChar(5000)
@@ -270,12 +271,14 @@ model WorkOrder {
   updated_at       DateTime          @updatedAt
 
   // Relations
-  tenant    Tenant          @relation(fields: [tenant_id], references: [id])
-  client    Client          @relation(fields: [client_id], references: [id])
-  vehicle   Vehicle         @relation(fields: [vehicle_id], references: [id])
-  mechanic  User?           @relation("assigned_mechanic", fields: [assigned_to], references: [id])
-  tasks     WorkOrderTask[]
-  parts     WorkOrderPart[]
+  tenant      Tenant          @relation(fields: [tenant_id], references: [id])
+  client      Client          @relation(fields: [client_id], references: [id])
+  vehicle     Vehicle         @relation(fields: [vehicle_id], references: [id])
+  mechanic    User?           @relation("assigned_mechanic", fields: [assigned_to], references: [id])
+  parent      WorkOrder?      @relation("supplements", fields: [parent_id], references: [id])
+  supplements WorkOrder[]     @relation("supplements")
+  tasks       WorkOrderTask[]
+  parts       WorkOrderPart[]
 
   @@unique([tenant_id, order_number])
   @@index([tenant_id, status])
@@ -283,6 +286,7 @@ model WorkOrder {
   @@index([tenant_id, vehicle_id])
   @@index([tenant_id, assigned_to])
   @@index([tenant_id, created_at])
+  @@index([tenant_id, parent_id])
   @@map("work_orders")
 }
 

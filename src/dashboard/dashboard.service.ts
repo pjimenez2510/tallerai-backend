@@ -4,7 +4,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/tenant/tenant.context';
 import {
   DashboardMetrics,
+  MonthlyTrendItem,
+  ProductivityMetrics,
   RecentWorkOrderItem,
+  StatusDistributionItem,
   TopMechanicItem,
   WorkOrdersByStatus,
 } from './interfaces/dashboard-metrics.interface';
@@ -159,6 +162,110 @@ export class DashboardService {
       recentWorkOrders: recentWorkOrdersMapped,
       topMechanics,
     };
+  }
+
+  async getProductivity(): Promise<ProductivityMetrics> {
+    const tenantId = this.tenantContext.getTenantId();
+    const now = new Date();
+
+    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const [completedOrders, thisMonthCount, lastMonthCount, statusGroups] =
+      await Promise.all([
+        this.prisma.workOrder.findMany({
+          where: {
+            tenant_id: tenantId,
+            status: {
+              in: [WorkOrderStatus.completado, WorkOrderStatus.entregado],
+            },
+            completed_date: { not: null },
+          },
+          select: { created_at: true, completed_date: true },
+        }),
+        this.prisma.workOrder.count({
+          where: {
+            tenant_id: tenantId,
+            created_at: { gte: startOfThisMonth },
+          },
+        }),
+        this.prisma.workOrder.count({
+          where: {
+            tenant_id: tenantId,
+            created_at: {
+              gte: startOfLastMonth,
+              lt: startOfThisMonth,
+            },
+          },
+        }),
+        this.prisma.workOrder.groupBy({
+          by: ['status'],
+          where: { tenant_id: tenantId },
+          _count: { status: true },
+        }),
+      ]);
+
+    const avgCompletionDays = this.calculateAvgCompletionDays(completedOrders);
+    const monthlyTrend = await this.buildMonthlyTrend(tenantId, now);
+
+    const statusDistribution: StatusDistributionItem[] = (
+      statusGroups as Array<{
+        status: string;
+        _count: { status: number };
+      }>
+    ).map((g) => ({ status: g.status, count: g._count.status }));
+
+    return {
+      avgCompletionDays,
+      workOrdersThisMonth: thisMonthCount,
+      workOrdersLastMonth: lastMonthCount,
+      monthlyTrend,
+      statusDistribution,
+    };
+  }
+
+  private calculateAvgCompletionDays(
+    orders: Array<{ created_at: Date; completed_date: Date | null }>,
+  ): number {
+    const completed = orders.filter((o) => o.completed_date !== null);
+    if (completed.length === 0) return 0;
+
+    const totalMs = completed.reduce((sum, o) => {
+      const diff =
+        (o.completed_date as Date).getTime() - o.created_at.getTime();
+      return sum + diff;
+    }, 0);
+
+    const avgMs = totalMs / completed.length;
+    return Math.round((avgMs / (1000 * 60 * 60 * 24)) * 10) / 10;
+  }
+
+  private async buildMonthlyTrend(
+    tenantId: string,
+    now: Date,
+  ): Promise<MonthlyTrendItem[]> {
+    const months: MonthlyTrendItem[] = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+
+      const count = await this.prisma.workOrder.count({
+        where: {
+          tenant_id: tenantId,
+          created_at: { gte: monthStart, lt: monthEnd },
+        },
+      });
+
+      const monthLabel = monthStart.toLocaleDateString('es-EC', {
+        year: 'numeric',
+        month: 'short',
+      });
+
+      months.push({ month: monthLabel, count });
+    }
+
+    return months;
   }
 
   private buildByStatusMap(
