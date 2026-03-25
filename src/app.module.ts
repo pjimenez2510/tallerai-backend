@@ -6,9 +6,12 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ClientsModule } from './clients/clients.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { ProductsModule } from './products/products.module';
 import { PublicModule } from './public/public.module';
+import { ReportsModule } from './reports/reports.module';
 import { ServicesModule } from './services/services.module';
+import { SettingsModule } from './settings/settings.module';
 import { UsersModule } from './users/users.module';
 import { VehiclesModule } from './vehicles/vehicles.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
@@ -38,8 +41,11 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     AuthModule,
     ClientsModule,
+    NotificationsModule,
     ProductsModule,
+    ReportsModule,
     ServicesModule,
+    SettingsModule,
     UsersModule,
     VehiclesModule,
     WorkOrdersModule,
