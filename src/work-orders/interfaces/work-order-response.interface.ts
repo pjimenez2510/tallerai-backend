@@ -20,6 +20,20 @@ export interface WorkOrderTaskResponse {
   sortOrder: number;
 }
 
+export interface AttachmentMetaResponse {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  description: string | null;
+  uploadedBy: string | null;
+  createdAt: string;
+}
+
+export interface AttachmentFullResponse extends AttachmentMetaResponse {
+  data: string;
+}
+
 export interface WorkOrderResponse {
   id: string;
   orderNumber: string;
@@ -48,6 +62,8 @@ export interface WorkOrderResponse {
   supplements: SupplementSummary[];
   clientSignature: string | null;
   signatureDate: string | null;
+  damageMap: unknown;
+  damageNotes: string | null;
   createdAt: string;
   updatedAt: string;
 }

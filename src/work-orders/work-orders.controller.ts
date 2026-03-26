@@ -23,6 +23,7 @@ import {
 import { WorkOrderStatus } from '@prisma/client';
 import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { AddPartDto } from './dto/add-part.dto';
+import { CreateAttachmentDto } from './dto/create-attachment.dto';
 import { CreateSupplementDto } from './dto/create-supplement.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
@@ -258,5 +259,78 @@ export class WorkOrdersController {
       message: 'Repuesto eliminado y stock restaurado exitosamente',
       data: null,
     };
+  }
+
+  // ===== Attachments =====
+
+  @Post(':id/attachments')
+  @RequirePermissions('work_orders.edit')
+  @ApiOperation({ summary: 'Subir archivo adjunto a una orden de trabajo' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 201, description: 'Archivo adjunto subido' })
+  @ApiResponse({
+    status: 400,
+    description: 'Tipo de archivo o tamaño inválido',
+  })
+  @ApiResponse({ status: 404, description: 'OT no encontrada' })
+  async addAttachment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateAttachmentDto,
+  ) {
+    const data = await this.workOrdersService.addAttachment(id, dto);
+    return { message: 'Archivo adjunto subido exitosamente', data };
+  }
+
+  @Get(':id/attachments')
+  @RequirePermissions('work_orders.view')
+  @ApiOperation({ summary: 'Listar archivos adjuntos de una orden de trabajo' })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de archivos adjuntos (sin datos binarios)',
+  })
+  @ApiResponse({ status: 404, description: 'OT no encontrada' })
+  async listAttachments(@Param('id', ParseUUIDPipe) id: string) {
+    const data = await this.workOrdersService.listAttachments(id);
+    return { message: 'Archivos adjuntos obtenidos exitosamente', data };
+  }
+
+  @Get(':woId/attachments/:attachmentId')
+  @RequirePermissions('work_orders.view')
+  @ApiOperation({
+    summary: 'Obtener archivo adjunto completo (con datos en base64)',
+  })
+  @ApiParam({ name: 'woId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'attachmentId', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Archivo adjunto completo' })
+  @ApiResponse({
+    status: 404,
+    description: 'Archivo adjunto u OT no encontrado',
+  })
+  async getAttachment(
+    @Param('woId', ParseUUIDPipe) woId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+  ) {
+    const data = await this.workOrdersService.getAttachment(woId, attachmentId);
+    return { message: 'Archivo adjunto obtenido exitosamente', data };
+  }
+
+  @Delete(':woId/attachments/:attachmentId')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('work_orders.edit')
+  @ApiOperation({ summary: 'Eliminar archivo adjunto de una orden de trabajo' })
+  @ApiParam({ name: 'woId', type: 'string', format: 'uuid' })
+  @ApiParam({ name: 'attachmentId', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Archivo adjunto eliminado' })
+  @ApiResponse({
+    status: 404,
+    description: 'Archivo adjunto u OT no encontrado',
+  })
+  async removeAttachment(
+    @Param('woId', ParseUUIDPipe) woId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+  ) {
+    await this.workOrdersService.removeAttachment(woId, attachmentId);
+    return { message: 'Archivo adjunto eliminado exitosamente', data: null };
   }
 }

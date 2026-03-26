@@ -28,4 +28,27 @@ export class PublicController {
     const data = await this.publicService.findWorkOrderByNumber(orderNumber);
     return { message: 'Orden de trabajo obtenida exitosamente', data };
   }
+
+  @Get('vehicles/:plate')
+  @ApiOperation({
+    summary: 'Portal público de vehículo por placa (sin autenticación)',
+    description:
+      'Endpoint público para que los clientes consulten el historial de órdenes de trabajo de su vehículo escaneando el QR. No expone datos sensibles como costos o notas internas.',
+  })
+  @ApiParam({
+    name: 'plate',
+    type: 'string',
+    example: 'GYE-1234',
+    description: 'Placa del vehículo',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Información pública del vehículo e historial de órdenes de trabajo',
+  })
+  @ApiResponse({ status: 404, description: 'Vehículo no encontrado' })
+  async findVehicle(@Param('plate') plate: string) {
+    const data = await this.publicService.findVehicleByPlate(plate);
+    return { message: 'Información del vehículo obtenida exitosamente', data };
+  }
 }
