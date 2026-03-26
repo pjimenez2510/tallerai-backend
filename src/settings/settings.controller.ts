@@ -5,21 +5,20 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, Roles, RolesGuard } from '../auth';
+import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { SettingsService } from './settings.service';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { UpdateBusinessSettingsDto } from './dto/update-business-settings.dto';
 
 @ApiTags('Settings')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.admin)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('settings')
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
   @Get()
+  @RequirePermissions('settings.view')
   @ApiOperation({ summary: 'Obtener configuración del taller' })
   @ApiResponse({ status: 200, description: 'Configuración del taller' })
   async getSettings() {
@@ -28,6 +27,7 @@ export class SettingsController {
   }
 
   @Patch()
+  @RequirePermissions('settings.edit')
   @ApiOperation({ summary: 'Actualizar datos generales del taller' })
   @ApiResponse({ status: 200, description: 'Configuración actualizada' })
   async updateSettings(@Body() dto: UpdateTenantDto) {
@@ -36,6 +36,7 @@ export class SettingsController {
   }
 
   @Patch('business')
+  @RequirePermissions('settings.edit')
   @ApiOperation({ summary: 'Actualizar configuración de negocio del taller' })
   @ApiResponse({
     status: 200,

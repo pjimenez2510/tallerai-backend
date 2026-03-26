@@ -18,8 +18,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, Roles, RolesGuard } from '../auth';
+import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { CreateStockMovementDto } from './dto/create-stock-movement.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -27,13 +26,13 @@ import { ProductsService } from './products.service';
 
 @ApiTags('Products')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post()
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('inventory.create')
   @ApiOperation({ summary: 'Crear producto/repuesto' })
   @ApiResponse({ status: 201, description: 'Producto creado' })
   @ApiResponse({ status: 409, description: 'Código ya existe en el taller' })
@@ -43,12 +42,7 @@ export class ProductsController {
   }
 
   @Get()
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('inventory.view')
   @ApiOperation({ summary: 'Listar productos del taller' })
   @ApiResponse({ status: 200, description: 'Lista de productos' })
   async findAll() {
@@ -57,12 +51,7 @@ export class ProductsController {
   }
 
   @Get('search')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('inventory.view')
   @ApiOperation({
     summary: 'Buscar productos por código, OEM, nombre, marca o categoría',
   })
@@ -74,7 +63,7 @@ export class ProductsController {
   }
 
   @Get('low-stock')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('inventory.view')
   @ApiOperation({ summary: 'Listar productos con stock bajo' })
   @ApiResponse({ status: 200, description: 'Productos con stock bajo' })
   async getLowStock() {
@@ -83,7 +72,7 @@ export class ProductsController {
   }
 
   @Get('report')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('inventory.view')
   @ApiOperation({
     summary:
       'Reporte de inventario: totales, valor, stock bajo y resumen por categoría',
@@ -95,12 +84,7 @@ export class ProductsController {
   }
 
   @Get(':id')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('inventory.view')
   @ApiOperation({ summary: 'Obtener producto por ID' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Producto encontrado' })
@@ -111,7 +95,7 @@ export class ProductsController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('inventory.edit')
   @ApiOperation({ summary: 'Actualizar producto' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Producto actualizado' })
@@ -126,7 +110,7 @@ export class ProductsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('inventory.delete')
   @ApiOperation({ summary: 'Desactivar producto (soft delete)' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Producto desactivado' })
@@ -137,7 +121,7 @@ export class ProductsController {
   }
 
   @Post(':id/stock')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('inventory.stock_movements')
   @ApiOperation({
     summary: 'Registrar movimiento de stock (ingreso, salida, ajuste)',
   })
@@ -157,7 +141,7 @@ export class ProductsController {
   }
 
   @Get(':id/movements')
-  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista)
+  @RequirePermissions('inventory.view')
   @ApiOperation({ summary: 'Listar movimientos de stock de un producto' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Lista de movimientos' })

@@ -14,6 +14,13 @@ jest.mock('bcrypt');
 
 const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 
+const mockAdminRole = {
+  id: 'admin-role-uuid',
+  name: 'Administrador',
+  slug: 'admin',
+  permissions: ['dashboard.view'],
+};
+
 const makeMockPrisma = () => ({
   tenant: {
     findUnique: jest.fn(),
@@ -21,6 +28,10 @@ const makeMockPrisma = () => ({
   },
   user: {
     findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+  },
+  role: {
     create: jest.fn(),
   },
   refreshToken: {
@@ -75,12 +86,14 @@ const mockUser = {
   name: 'Admin Test',
   email: 'admin@test.com',
   role: UserRole.admin,
+  role_id: 'admin-role-uuid',
   tenant_id: 'tenant-uuid',
   password_hash: 'hashed-password',
   phone: '0999999999',
   avatar_url: null,
   is_active: true,
   tenant: mockTenant,
+  role_ref: mockAdminRole,
 };
 
 describe('AuthService', () => {
@@ -116,6 +129,14 @@ describe('AuthService', () => {
         (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma),
       );
       mockPrisma.tenant.create.mockResolvedValue(mockTenant);
+      // First call returns adminRole, second returns mecanicoRole
+      mockPrisma.role.create
+        .mockResolvedValueOnce(mockAdminRole)
+        .mockResolvedValueOnce({
+          id: 'mecanico-role-uuid',
+          slug: 'mecanico',
+          permissions: [],
+        });
       mockPrisma.user.create.mockResolvedValue(mockUser);
       mockPrisma.refreshToken.create.mockResolvedValue({});
       (mockBcrypt.hash as jest.Mock).mockResolvedValue('hashed-value');
@@ -134,22 +155,26 @@ describe('AuthService', () => {
       expect(result.refreshToken).toBe('mock-jwt-token');
     });
 
-    it('should create tenant and user inside a transaction', async () => {
+    it('should create tenant, roles and user inside a transaction', async () => {
       await service.register(registerDto);
 
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
       expect(mockPrisma.tenant.create).toHaveBeenCalledWith({
         data: { name: registerDto.tenantName, ruc: registerDto.tenantRuc },
       });
+      // Verify 2 roles were created (admin + mecanico)
+      expect(mockPrisma.role.create).toHaveBeenCalledTimes(2);
       expect(mockPrisma.user.create).toHaveBeenCalledWith({
-        data: {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        data: expect.objectContaining({
           tenant_id: mockTenant.id,
           name: registerDto.adminName,
           email: registerDto.adminEmail,
           password_hash: 'hashed-value',
           role: UserRole.admin,
+          role_id: mockAdminRole.id,
           phone: registerDto.adminPhone,
-        },
+        }),
       });
     });
 
@@ -229,6 +254,14 @@ describe('AuthService', () => {
       expect(result.tenant.id).toBe('tenant-uuid');
       expect(result.accessToken).toBe('mock-jwt-token');
       expect(result.refreshToken).toBe('mock-jwt-token');
+    });
+
+    it('should include role info in user payload', async () => {
+      const result = await service.login(loginDto);
+
+      expect(result.user.roleId).toBe('admin-role-uuid');
+      expect(result.user.roleSlug).toBe('admin');
+      expect(result.user.permissions).toEqual(['dashboard.view']);
     });
 
     it('should log successful login', async () => {
@@ -325,6 +358,7 @@ describe('AuthService', () => {
         id: 'user-uuid',
         email: 'admin@test.com',
         role: UserRole.admin,
+        role_id: 'admin-role-uuid',
         tenant_id: 'tenant-uuid',
         is_active: true,
       });
@@ -451,6 +485,10 @@ describe('AuthService', () => {
       expect(result.name).toBe('Admin Test');
       expect(result.email).toBe('admin@test.com');
       expect(result.role).toBe(UserRole.admin);
+      expect(result.roleId).toBe('admin-role-uuid');
+      expect(result.roleName).toBe('Administrador');
+      expect(result.roleSlug).toBe('admin');
+      expect(result.permissions).toEqual(['dashboard.view']);
       expect(result.tenantId).toBe('tenant-uuid');
       expect(result.tenantName).toBe('Taller Test');
       expect(result.phone).toBe('0999999999');
@@ -464,7 +502,7 @@ describe('AuthService', () => {
       );
     });
 
-    it('should query DB with userId AND tenantId (tenant isolation)', async () => {
+    it('should query DB with userId AND tenantId (tenant isolation) and include role_ref', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockUser);
 
       await service.getMe('user-uuid', 'tenant-uuid');
@@ -475,7 +513,7 @@ describe('AuthService', () => {
           tenant_id: 'tenant-uuid',
           is_active: true,
         },
-        include: { tenant: true },
+        include: { tenant: true, role_ref: true },
       });
     });
   });

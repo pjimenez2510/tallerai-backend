@@ -18,21 +18,20 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, Roles, RolesGuard } from '../auth';
+import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ClientsService } from './clients.service';
 
 @ApiTags('Clients')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('clients')
 export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
   @Post()
-  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista)
+  @RequirePermissions('clients.create')
   @ApiOperation({ summary: 'Registrar nuevo cliente' })
   @ApiResponse({ status: 201, description: 'Cliente creado' })
   @ApiResponse({
@@ -45,12 +44,7 @@ export class ClientsController {
   }
 
   @Get()
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('clients.view')
   @ApiOperation({ summary: 'Listar clientes del taller' })
   @ApiResponse({ status: 200, description: 'Lista de clientes' })
   async findAll() {
@@ -59,12 +53,7 @@ export class ClientsController {
   }
 
   @Get('search')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('clients.view')
   @ApiOperation({
     summary: 'Buscar clientes por nombre, documento, teléfono o email',
   })
@@ -76,12 +65,7 @@ export class ClientsController {
   }
 
   @Get(':id')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('clients.view')
   @ApiOperation({ summary: 'Obtener cliente por ID' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Cliente encontrado' })
@@ -92,7 +76,7 @@ export class ClientsController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista)
+  @RequirePermissions('clients.edit')
   @ApiOperation({ summary: 'Actualizar datos del cliente' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Cliente actualizado' })
@@ -110,7 +94,7 @@ export class ClientsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('clients.delete')
   @ApiOperation({ summary: 'Desactivar cliente (soft delete)' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Cliente desactivado' })
@@ -121,7 +105,7 @@ export class ClientsController {
   }
 
   @Patch(':id/activate')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('clients.edit')
   @ApiOperation({ summary: 'Reactivar cliente' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Cliente reactivado' })

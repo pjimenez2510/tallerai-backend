@@ -5,6 +5,9 @@ export interface AuthUserPayload {
   name: string;
   email: string;
   role: UserRole;
+  roleId: string | null;
+  roleSlug: string | null;
+  permissions: string[];
   tenantId: string;
 }
 
@@ -38,6 +41,10 @@ export interface MeResponse {
   name: string;
   email: string;
   role: UserRole;
+  roleId: string | null;
+  roleName: string | null;
+  roleSlug: string | null;
+  permissions: string[];
   phone: string | null;
   avatarUrl: string | null;
   tenantId: string;
@@ -49,4 +56,5 @@ export interface JwtPayload {
   tenantId: string;
   role: UserRole;
   email: string;
+  roleId?: string | null;
 }

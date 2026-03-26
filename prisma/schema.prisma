@@ -64,8 +64,28 @@ model Tenant {
   services        Service[]
   purchase_orders PurchaseOrder[]
   notifications   Notification[]
+  roles           Role[]
 
   @@map("tenants")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  name        String   @db.VarChar(100)
+  slug        String   @db.VarChar(50)
+  description String?  @db.VarChar(500)
+  permissions String[] @default([])
+  is_system   Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+  users  User[]
+
+  @@unique([tenant_id, slug])
+  @@index([tenant_id])
+  @@map("roles")
 }
 
 model User {
@@ -75,6 +95,7 @@ model User {
   email         String   @db.VarChar(200)
   password_hash String   @db.VarChar(255)
   role          UserRole @default(mecanico)
+  role_id       String?
   phone         String?  @db.VarChar(20)
   avatar_url    String?  @db.VarChar(1000)
   is_active     Boolean  @default(true)
@@ -83,6 +104,7 @@ model User {
 
   // Relations
   tenant              Tenant         @relation(fields: [tenant_id], references: [id])
+  role_ref            Role?          @relation(fields: [role_id], references: [id])
   refresh_tokens      RefreshToken[]
   assigned_work_orders WorkOrder[]   @relation("assigned_mechanic")
   notifications       Notification[]
@@ -90,6 +112,7 @@ model User {
   @@unique([tenant_id, email])
   @@index([tenant_id, role])
   @@index([tenant_id, is_active])
+  @@index([tenant_id, role_id])
   @@map("users")
 }
 

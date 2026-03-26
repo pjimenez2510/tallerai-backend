@@ -5,24 +5,18 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, Roles, RolesGuard } from '../auth';
+import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { DashboardService } from './dashboard.service';
 
 @ApiTags('Dashboard')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('metrics')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('dashboard.view')
   @ApiOperation({ summary: 'Obtener métricas del dashboard' })
   @ApiResponse({ status: 200, description: 'Métricas del taller' })
   async getMetrics() {
@@ -31,7 +25,7 @@ export class DashboardController {
   }
 
   @Get('productivity')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('dashboard.productivity')
   @ApiOperation({ summary: 'Obtener métricas de productividad del taller' })
   @ApiResponse({ status: 200, description: 'Métricas de productividad' })
   async getProductivity() {

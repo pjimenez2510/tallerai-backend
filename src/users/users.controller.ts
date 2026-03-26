@@ -16,21 +16,20 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, Roles, RolesGuard } from '../auth';
+import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('users.create')
   @ApiOperation({ summary: 'Crear usuario del taller' })
   @ApiResponse({ status: 201, description: 'Usuario creado' })
   @ApiResponse({ status: 409, description: 'Email ya registrado en el taller' })
@@ -40,7 +39,7 @@ export class UsersController {
   }
 
   @Get()
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('users.view')
   @ApiOperation({ summary: 'Listar usuarios del taller' })
   @ApiResponse({ status: 200, description: 'Lista de usuarios' })
   async findAll() {
@@ -49,7 +48,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('users.view')
   @ApiOperation({ summary: 'Obtener usuario por ID' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Usuario encontrado' })
@@ -60,7 +59,7 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('users.edit')
   @ApiOperation({ summary: 'Actualizar usuario del taller' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Usuario actualizado' })
@@ -75,7 +74,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.admin)
+  @RequirePermissions('users.deactivate')
   @ApiOperation({ summary: 'Desactivar usuario (soft delete)' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Usuario desactivado' })
@@ -86,7 +85,7 @@ export class UsersController {
   }
 
   @Patch(':id/activate')
-  @Roles(UserRole.admin)
+  @RequirePermissions('users.edit')
   @ApiOperation({ summary: 'Reactivar usuario' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Usuario reactivado' })

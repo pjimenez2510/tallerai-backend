@@ -18,21 +18,20 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, Roles, RolesGuard } from '../auth';
+import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { VehiclesService } from './vehicles.service';
 
 @ApiTags('Vehicles')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('vehicles')
 export class VehiclesController {
   constructor(private readonly vehiclesService: VehiclesService) {}
 
   @Post()
-  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista)
+  @RequirePermissions('vehicles.create')
   @ApiOperation({ summary: 'Registrar nuevo vehículo' })
   @ApiResponse({ status: 201, description: 'Vehículo creado' })
   @ApiResponse({ status: 404, description: 'Cliente no encontrado' })
@@ -43,12 +42,7 @@ export class VehiclesController {
   }
 
   @Get()
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('vehicles.view')
   @ApiOperation({ summary: 'Listar vehículos del taller' })
   @ApiResponse({ status: 200, description: 'Lista de vehículos' })
   async findAll() {
@@ -57,12 +51,7 @@ export class VehiclesController {
   }
 
   @Get('search')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('vehicles.view')
   @ApiOperation({
     summary: 'Buscar vehículos por placa, marca, modelo o cliente',
   })
@@ -74,12 +63,7 @@ export class VehiclesController {
   }
 
   @Get('by-plate/:plate')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('vehicles.view')
   @ApiOperation({ summary: 'Buscar vehículo por placa exacta' })
   @ApiParam({ name: 'plate', type: 'string' })
   @ApiResponse({ status: 200, description: 'Vehículo encontrado' })
@@ -90,12 +74,7 @@ export class VehiclesController {
   }
 
   @Get('by-client/:clientId')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('vehicles.view')
   @ApiOperation({ summary: 'Listar vehículos de un cliente' })
   @ApiParam({ name: 'clientId', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Vehículos del cliente' })
@@ -105,12 +84,7 @@ export class VehiclesController {
   }
 
   @Get(':id')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('vehicles.view')
   @ApiOperation({ summary: 'Obtener vehículo por ID' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Vehículo encontrado' })
@@ -121,7 +95,7 @@ export class VehiclesController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista)
+  @RequirePermissions('vehicles.edit')
   @ApiOperation({ summary: 'Actualizar datos del vehículo' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Vehículo actualizado' })
@@ -136,7 +110,7 @@ export class VehiclesController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('vehicles.delete')
   @ApiOperation({ summary: 'Desactivar vehículo (soft delete)' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Vehículo desactivado' })

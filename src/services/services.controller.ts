@@ -16,21 +16,20 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, Roles, RolesGuard } from '../auth';
+import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServicesService } from './services.service';
 
 @ApiTags('Services')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('services')
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
   @Post()
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('services.create')
   @ApiOperation({ summary: 'Crear servicio del taller' })
   @ApiResponse({ status: 201, description: 'Servicio creado' })
   @ApiResponse({ status: 409, description: 'Código ya existe en el taller' })
@@ -40,12 +39,7 @@ export class ServicesController {
   }
 
   @Get()
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('services.view')
   @ApiOperation({ summary: 'Listar servicios activos del taller' })
   @ApiResponse({ status: 200, description: 'Lista de servicios' })
   async findAll() {
@@ -54,12 +48,7 @@ export class ServicesController {
   }
 
   @Get(':id')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('services.view')
   @ApiOperation({ summary: 'Obtener servicio por ID' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Servicio encontrado' })
@@ -70,7 +59,7 @@ export class ServicesController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('services.edit')
   @ApiOperation({ summary: 'Actualizar servicio' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Servicio actualizado' })
@@ -85,7 +74,7 @@ export class ServicesController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('services.delete')
   @ApiOperation({ summary: 'Desactivar servicio (soft delete)' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Servicio desactivado' })

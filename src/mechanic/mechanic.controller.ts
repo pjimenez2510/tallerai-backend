@@ -15,20 +15,19 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 import {
   AuthenticatedUser,
   CurrentUser,
   JwtAuthGuard,
-  Roles,
-  RolesGuard,
+  PermissionsGuard,
+  RequirePermissions,
 } from '../auth';
 import { MechanicService } from './mechanic.service';
 
 @ApiTags('Mechanic')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.mecanico, UserRole.jefe_taller, UserRole.admin)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('mechanic.view')
 @Controller('mechanic')
 export class MechanicController {
   constructor(private readonly mechanicService: MechanicService) {}
@@ -45,6 +44,7 @@ export class MechanicController {
 
   @Patch('tasks/:taskId/complete')
   @HttpCode(HttpStatus.OK)
+  @RequirePermissions('mechanic.complete_tasks')
   @ApiOperation({ summary: 'Alternar estado de completado de una tarea' })
   @ApiParam({ name: 'taskId', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Estado de tarea actualizado' })

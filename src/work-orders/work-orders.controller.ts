@@ -20,8 +20,8 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole, WorkOrderStatus } from '@prisma/client';
-import { JwtAuthGuard, Roles, RolesGuard } from '../auth';
+import { WorkOrderStatus } from '@prisma/client';
+import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { AddPartDto } from './dto/add-part.dto';
 import { CreateSupplementDto } from './dto/create-supplement.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -32,13 +32,13 @@ import { WorkOrdersService } from './work-orders.service';
 
 @ApiTags('Work Orders')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('work-orders')
 export class WorkOrdersController {
   constructor(private readonly workOrdersService: WorkOrdersService) {}
 
   @Post()
-  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista)
+  @RequirePermissions('work_orders.create')
   @ApiOperation({ summary: 'Crear orden de trabajo' })
   @ApiResponse({ status: 201, description: 'OT creada' })
   async create(@Body() dto: CreateWorkOrderDto) {
@@ -47,12 +47,7 @@ export class WorkOrdersController {
   }
 
   @Get()
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('work_orders.view')
   @ApiOperation({ summary: 'Listar órdenes de trabajo' })
   @ApiQuery({
     name: 'status',
@@ -67,12 +62,7 @@ export class WorkOrdersController {
   }
 
   @Get('by-client/:clientId')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('work_orders.view')
   @ApiOperation({ summary: 'Listar órdenes de trabajo de un cliente' })
   @ApiParam({ name: 'clientId', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Lista de OTs del cliente' })
@@ -86,12 +76,7 @@ export class WorkOrdersController {
   }
 
   @Get('by-vehicle/:vehicleId')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('work_orders.view')
   @ApiOperation({ summary: 'Listar órdenes de trabajo de un vehículo' })
   @ApiParam({ name: 'vehicleId', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Lista de OTs del vehículo' })
@@ -105,12 +90,7 @@ export class WorkOrdersController {
   }
 
   @Get('by-vehicle/:vehicleId/timeline')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('work_orders.view')
   @ApiOperation({
     summary: 'Timeline de historial de órdenes de trabajo de un vehículo',
   })
@@ -128,7 +108,7 @@ export class WorkOrdersController {
   }
 
   @Post(':id/supplement')
-  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista)
+  @RequirePermissions('work_orders.create')
   @ApiOperation({
     summary: 'Crear orden de trabajo suplementaria vinculada a la original',
   })
@@ -147,12 +127,7 @@ export class WorkOrdersController {
   }
 
   @Get(':id/quote')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('work_orders.view')
   @ApiOperation({ summary: 'Generar cotización de orden de trabajo' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Cotización generada' })
@@ -163,12 +138,7 @@ export class WorkOrdersController {
   }
 
   @Get(':id')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('work_orders.view')
   @ApiOperation({ summary: 'Obtener orden de trabajo por ID' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'OT encontrada' })
@@ -179,7 +149,7 @@ export class WorkOrdersController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista)
+  @RequirePermissions('work_orders.edit')
   @ApiOperation({
     summary: 'Actualizar OT (estado, diagnóstico, asignación, etc.)',
   })
@@ -198,12 +168,7 @@ export class WorkOrdersController {
   // ===== Tasks =====
 
   @Post(':id/tasks')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('work_orders.edit')
   @ApiOperation({ summary: 'Agregar tarea a una orden de trabajo' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 201, description: 'Tarea agregada' })
@@ -217,12 +182,7 @@ export class WorkOrdersController {
   }
 
   @Patch(':woId/tasks/:taskId')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('work_orders.edit')
   @ApiOperation({ summary: 'Actualizar tarea de una orden de trabajo' })
   @ApiParam({ name: 'woId', type: 'string', format: 'uuid' })
   @ApiParam({ name: 'taskId', type: 'string', format: 'uuid' })
@@ -239,7 +199,7 @@ export class WorkOrdersController {
 
   @Delete(':woId/tasks/:taskId')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista)
+  @RequirePermissions('work_orders.edit')
   @ApiOperation({ summary: 'Eliminar tarea de una orden de trabajo' })
   @ApiParam({ name: 'woId', type: 'string', format: 'uuid' })
   @ApiParam({ name: 'taskId', type: 'string', format: 'uuid' })
@@ -256,12 +216,7 @@ export class WorkOrdersController {
   // ===== Parts =====
 
   @Post(':id/parts')
-  @Roles(
-    UserRole.admin,
-    UserRole.jefe_taller,
-    UserRole.recepcionista,
-    UserRole.mecanico,
-  )
+  @RequirePermissions('work_orders.edit')
   @ApiOperation({
     summary: 'Agregar repuesto a OT (descuenta stock automáticamente)',
   })
@@ -285,7 +240,7 @@ export class WorkOrdersController {
 
   @Delete(':woId/parts/:partId')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.admin, UserRole.jefe_taller, UserRole.recepcionista)
+  @RequirePermissions('work_orders.edit')
   @ApiOperation({ summary: 'Eliminar repuesto de OT (restaura stock)' })
   @ApiParam({ name: 'woId', type: 'string', format: 'uuid' })
   @ApiParam({ name: 'partId', type: 'string', format: 'uuid' })

@@ -6,11 +6,15 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { UserRole } from '@prisma/client';
+import { Role, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import type { StringValue } from 'ms';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  ADMIN_PERMISSIONS,
+  MECHANIC_PERMISSIONS,
+} from './permissions/permissions.enum';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -45,7 +49,7 @@ export class AuthService {
     await this.assertEmailNotTaken(dto.adminEmail);
 
     const passwordHash = await bcrypt.hash(dto.adminPassword, BCRYPT_ROUNDS);
-    const { tenant, user } = await this.createTenantWithAdmin(
+    const { tenant, user, adminRole } = await this.createTenantWithAdmin(
       dto,
       passwordHash,
     );
@@ -55,6 +59,7 @@ export class AuthService {
       tenant.id,
       user.role,
       user.email,
+      user.role_id,
     );
     const refreshToken = this.signRefreshToken(user.id);
     const tokenHash = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);
@@ -66,7 +71,7 @@ export class AuthService {
     );
 
     return {
-      user: this.mapUser(user, tenant.id),
+      user: this.mapUser(user, tenant.id, adminRole),
       tenant: this.mapTenant(tenant),
       accessToken,
       refreshToken,
@@ -76,7 +81,7 @@ export class AuthService {
   async login(dto: LoginDto): Promise<LoginResponse> {
     const user = await this.prisma.user.findFirst({
       where: { email: dto.email, is_active: true },
-      include: { tenant: true },
+      include: { tenant: true, role_ref: true },
     });
 
     if (!user) {
@@ -111,6 +116,7 @@ export class AuthService {
       user.tenant_id,
       user.role,
       user.email,
+      user.role_id,
     );
     const refreshToken = this.signRefreshToken(user.id);
     const tokenHash = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);
@@ -122,7 +128,7 @@ export class AuthService {
     );
 
     return {
-      user: this.mapUser(user, user.tenant_id),
+      user: this.mapUser(user, user.tenant_id, user.role_ref),
       tenant: this.mapTenant(user.tenant),
       accessToken,
       refreshToken,
@@ -184,6 +190,7 @@ export class AuthService {
       user.tenant_id,
       user.role,
       user.email,
+      user.role_id,
     );
     const newRefreshToken = this.signRefreshToken(user.id);
     const newTokenHash = await bcrypt.hash(newRefreshToken, BCRYPT_ROUNDS);
@@ -230,7 +237,7 @@ export class AuthService {
   async getMe(userId: string, tenantId: string): Promise<MeResponse> {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, tenant_id: tenantId, is_active: true },
-      include: { tenant: true },
+      include: { tenant: true, role_ref: true },
     });
 
     if (!user) {
@@ -242,6 +249,10 @@ export class AuthService {
       name: user.name,
       email: user.email,
       role: user.role,
+      roleId: user.role_id,
+      roleName: user.role_ref?.name ?? null,
+      roleSlug: user.role_ref?.slug ?? null,
+      permissions: user.role_ref?.permissions ?? [],
       phone: user.phone,
       avatarUrl: user.avatar_url,
       tenantId: user.tenant_id,
@@ -256,7 +267,7 @@ export class AuthService {
   ): Promise<MeResponse> {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, tenant_id: tenantId, is_active: true },
-      include: { tenant: true },
+      include: { tenant: true, role_ref: true },
     });
 
     if (!user) {
@@ -271,7 +282,7 @@ export class AuthService {
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data,
-      include: { tenant: true },
+      include: { tenant: true, role_ref: true },
     });
 
     this.logger.info({ userId, tenantId }, 'User profile updated');
@@ -281,6 +292,10 @@ export class AuthService {
       name: updated.name,
       email: updated.email,
       role: updated.role,
+      roleId: updated.role_id,
+      roleName: updated.role_ref?.name ?? null,
+      roleSlug: updated.role_ref?.slug ?? null,
+      permissions: updated.role_ref?.permissions ?? [],
       phone: updated.phone,
       avatarUrl: updated.avatar_url,
       tenantId: updated.tenant_id,
@@ -342,6 +357,28 @@ export class AuthService {
         data: { name: dto.tenantName, ruc: dto.tenantRuc },
       });
 
+      const adminRole = await tx.role.create({
+        data: {
+          tenant_id: tenant.id,
+          name: 'Administrador',
+          slug: 'admin',
+          description: 'Full access to all features',
+          permissions: ADMIN_PERMISSIONS,
+          is_system: true,
+        },
+      });
+
+      await tx.role.create({
+        data: {
+          tenant_id: tenant.id,
+          name: 'Mecánico',
+          slug: 'mecanico',
+          description: 'Access to mechanic features and assigned work orders',
+          permissions: MECHANIC_PERMISSIONS,
+          is_system: true,
+        },
+      });
+
       const user = await tx.user.create({
         data: {
           tenant_id: tenant.id,
@@ -349,11 +386,12 @@ export class AuthService {
           email: dto.adminEmail,
           password_hash: passwordHash,
           role: UserRole.admin,
+          role_id: adminRole.id,
           phone: dto.adminPhone,
         },
       });
 
-      return { tenant, user };
+      return { tenant, user, adminRole };
     });
   }
 
@@ -362,8 +400,9 @@ export class AuthService {
     tenantId: string,
     role: UserRole,
     email: string,
+    roleId?: string | null,
   ): string {
-    const payload: JwtPayload = { sub: userId, tenantId, role, email };
+    const payload: JwtPayload = { sub: userId, tenantId, role, email, roleId };
     const secret = this.configService.get<string>('jwt.secret');
     const rawExpiry =
       this.configService.get<string>('jwt.accessExpiresIn') ?? '15m';
@@ -403,14 +442,24 @@ export class AuthService {
   }
 
   private mapUser(
-    user: { id: string; name: string; email: string; role: UserRole },
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      role: UserRole;
+      role_id?: string | null;
+    },
     tenantId: string,
+    roleRef: Role | null | undefined,
   ): AuthUserPayload {
     return {
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
+      roleId: user.role_id ?? null,
+      roleSlug: roleRef?.slug ?? null,
+      permissions: roleRef?.permissions ?? [],
       tenantId,
     };
   }
