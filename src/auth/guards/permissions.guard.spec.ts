@@ -6,10 +6,9 @@ import { AuthenticatedUser } from '../strategies/jwt.strategy';
 const makeUser = (permissions: string[]): AuthenticatedUser => ({
   id: 'u1',
   tenantId: 't1',
-  role: 'admin',
+  roleSlug: 'admin',
   email: 'a@b.com',
   roleId: null,
-  roleSlug: null,
   permissions,
 });
 

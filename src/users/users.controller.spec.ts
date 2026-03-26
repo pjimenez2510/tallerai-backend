@@ -1,4 +1,3 @@
-import { UserRole } from '@prisma/client';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
@@ -6,7 +5,8 @@ const mockUser = {
   id: 'user-001',
   name: 'Juan Pérez',
   email: 'juan@test.com',
-  role: UserRole.mecanico,
+  roleId: 'role-001',
+  roleSlug: 'mecanico',
   phone: '0998765432',
   avatarUrl: null,
   isActive: true,
@@ -37,7 +37,7 @@ describe('UsersController', () => {
         name: 'Juan Pérez',
         email: 'juan@test.com',
         password: 'Password123!',
-        role: UserRole.mecanico,
+        roleId: 'role-001',
       };
 
       const result = await controller.create(dto);

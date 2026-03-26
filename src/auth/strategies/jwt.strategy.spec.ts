@@ -1,6 +1,5 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { UserRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtStrategy } from './jwt.strategy';
 
@@ -37,70 +36,70 @@ describe('JwtStrategy', () => {
     const mockUser = {
       id: 'user-uuid',
       tenant_id: 'tenant-uuid',
-      role: UserRole.admin,
       email: 'admin@test.com',
       is_active: true,
       role_id: 'role-uuid',
-      role_ref: mockRole,
+      role: mockRole,
     };
     mockPrisma.user.findFirst.mockResolvedValue(mockUser);
 
     const result = await strategy.validate({
       sub: 'user-uuid',
       tenantId: 'tenant-uuid',
-      role: UserRole.admin,
+      roleSlug: 'admin',
       email: 'admin@test.com',
     });
 
     expect(result).toEqual({
       id: 'user-uuid',
       tenantId: 'tenant-uuid',
-      role: UserRole.admin,
+      roleSlug: 'admin',
       email: 'admin@test.com',
       roleId: 'role-uuid',
-      roleSlug: 'admin',
       permissions: ['dashboard.view'],
     });
   });
 
-  it('should return null roleSlug and empty permissions when no role_ref', async () => {
+  it('should return roleSlug and permissions from the role relation', async () => {
     const mockUser = {
       id: 'user-uuid',
       tenant_id: 'tenant-uuid',
-      role: UserRole.admin,
       email: 'admin@test.com',
       is_active: true,
-      role_id: null,
-      role_ref: null,
+      role_id: 'role-uuid',
+      role: {
+        id: 'role-uuid',
+        slug: 'mecanico',
+        permissions: ['work_orders.view'],
+      },
     };
     mockPrisma.user.findFirst.mockResolvedValue(mockUser);
 
     const result = await strategy.validate({
       sub: 'user-uuid',
       tenantId: 'tenant-uuid',
-      role: UserRole.admin,
+      roleSlug: 'mecanico',
       email: 'admin@test.com',
     });
 
-    expect(result.roleId).toBeNull();
-    expect(result.roleSlug).toBeNull();
-    expect(result.permissions).toEqual([]);
+    expect(result.roleId).toBe('role-uuid');
+    expect(result.roleSlug).toBe('mecanico');
+    expect(result.permissions).toEqual(['work_orders.view']);
   });
 
-  it('should query with user id, tenant id, is_active and include role_ref', async () => {
+  it('should query with user id, tenant id, is_active and include role', async () => {
     mockPrisma.user.findFirst.mockResolvedValue({
       id: 'user-uuid',
       tenant_id: 'tenant-uuid',
-      role: UserRole.admin,
       email: 'admin@test.com',
-      role_id: null,
-      role_ref: null,
+      role_id: 'role-uuid',
+      role: { slug: 'admin', permissions: [] },
     });
 
     await strategy.validate({
       sub: 'user-uuid',
       tenantId: 'tenant-uuid',
-      role: UserRole.admin,
+      roleSlug: 'admin',
       email: 'admin@test.com',
     });
 
@@ -111,7 +110,7 @@ describe('JwtStrategy', () => {
         is_active: true,
       },
       include: {
-        role_ref: true,
+        role: true,
       },
     });
   });
@@ -123,7 +122,7 @@ describe('JwtStrategy', () => {
       strategy.validate({
         sub: 'user-uuid',
         tenantId: 'tenant-uuid',
-        role: UserRole.admin,
+        roleSlug: 'admin',
         email: 'admin@test.com',
       }),
     ).rejects.toThrow(

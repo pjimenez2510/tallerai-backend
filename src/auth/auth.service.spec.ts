@@ -1,7 +1,6 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PinoLogger } from 'nestjs-pino';
 import { PrismaService } from '../prisma/prisma.service';
@@ -85,7 +84,6 @@ const mockUser = {
   id: 'user-uuid',
   name: 'Admin Test',
   email: 'admin@test.com',
-  role: UserRole.admin,
   role_id: 'admin-role-uuid',
   tenant_id: 'tenant-uuid',
   password_hash: 'hashed-password',
@@ -93,7 +91,7 @@ const mockUser = {
   avatar_url: null,
   is_active: true,
   tenant: mockTenant,
-  role_ref: mockAdminRole,
+  role: mockAdminRole,
 };
 
 describe('AuthService', () => {
@@ -147,7 +145,7 @@ describe('AuthService', () => {
 
       expect(result.user.id).toBe('user-uuid');
       expect(result.user.email).toBe('admin@test.com');
-      expect(result.user.role).toBe(UserRole.admin);
+      expect(result.user.roleId).toBe('admin-role-uuid');
       expect(result.user.tenantId).toBe('tenant-uuid');
       expect(result.tenant.id).toBe('tenant-uuid');
       expect(result.tenant.ruc).toBe('0992345678001');
@@ -171,7 +169,6 @@ describe('AuthService', () => {
           name: registerDto.adminName,
           email: registerDto.adminEmail,
           password_hash: 'hashed-value',
-          role: UserRole.admin,
           role_id: mockAdminRole.id,
           phone: registerDto.adminPhone,
         }),
@@ -357,10 +354,10 @@ describe('AuthService', () => {
       mockPrisma.user.findFirst.mockResolvedValue({
         id: 'user-uuid',
         email: 'admin@test.com',
-        role: UserRole.admin,
         role_id: 'admin-role-uuid',
         tenant_id: 'tenant-uuid',
         is_active: true,
+        role: { slug: 'admin', permissions: ['dashboard.view'] },
       });
     });
 
@@ -484,7 +481,6 @@ describe('AuthService', () => {
       expect(result.id).toBe('user-uuid');
       expect(result.name).toBe('Admin Test');
       expect(result.email).toBe('admin@test.com');
-      expect(result.role).toBe(UserRole.admin);
       expect(result.roleId).toBe('admin-role-uuid');
       expect(result.roleName).toBe('Administrador');
       expect(result.roleSlug).toBe('admin');
@@ -502,7 +498,7 @@ describe('AuthService', () => {
       );
     });
 
-    it('should query DB with userId AND tenantId (tenant isolation) and include role_ref', async () => {
+    it('should query DB with userId AND tenantId (tenant isolation) and include role', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockUser);
 
       await service.getMe('user-uuid', 'tenant-uuid');
@@ -513,7 +509,7 @@ describe('AuthService', () => {
           tenant_id: 'tenant-uuid',
           is_active: true,
         },
-        include: { tenant: true, role_ref: true },
+        include: { tenant: true, role: true },
       });
     });
   });

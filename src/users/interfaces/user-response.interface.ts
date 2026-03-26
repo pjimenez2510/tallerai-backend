@@ -1,10 +1,9 @@
-import { UserRole } from '@prisma/client';
-
 export interface UserResponse {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  roleId: string;
+  roleSlug: string | null;
   phone: string | null;
   avatarUrl: string | null;
   isActive: boolean;

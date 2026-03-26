@@ -1,5 +1,4 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/tenant/tenant.context';
@@ -28,6 +27,13 @@ const mockTenantContext = {
   getTenantId: jest.fn().mockReturnValue(TENANT_ID),
 };
 
+const mockRole = {
+  id: 'role-001',
+  slug: 'mecanico',
+  name: 'Mecánico',
+  permissions: [],
+};
+
 function makeUser(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 'user-001',
@@ -35,7 +41,8 @@ function makeUser(overrides: Partial<Record<string, unknown>> = {}) {
     name: 'Juan Pérez',
     email: 'juan@test.com',
     password_hash: 'hashed',
-    role: UserRole.mecanico,
+    role_id: 'role-001',
+    role: mockRole,
     phone: '0998765432',
     avatar_url: null,
     is_active: true,
@@ -63,7 +70,7 @@ describe('UsersService', () => {
       name: 'Juan Pérez',
       email: 'juan@test.com',
       password: 'Password123!',
-      role: UserRole.mecanico,
+      roleId: 'role-001',
       phone: '0998765432',
     };
 
@@ -76,17 +83,18 @@ describe('UsersService', () => {
       expect(result.id).toBe('user-001');
       expect(result.name).toBe('Juan Pérez');
       expect(result.email).toBe('juan@test.com');
-      expect(result.role).toBe(UserRole.mecanico);
+      expect(result.roleId).toBe('role-001');
+      expect(result.roleSlug).toBe('mecanico');
       expect(mockPrisma.user.create).toHaveBeenCalledWith({
         data: {
           tenant_id: TENANT_ID,
           name: dto.name,
           email: dto.email,
           password_hash: 'hashed-pw',
-          role: dto.role,
-          role_id: null,
+          role_id: dto.roleId,
           phone: dto.phone,
         },
+        include: { role: true },
       });
     });
 
@@ -112,7 +120,7 @@ describe('UsersService', () => {
       await service.create(dto);
 
       expect(mockLogger.info).toHaveBeenCalledWith(
-        { userId: 'user-001', tenantId: TENANT_ID, role: UserRole.mecanico },
+        { userId: 'user-001', tenantId: TENANT_ID, roleId: 'role-001' },
         'User created',
       );
     });
@@ -130,6 +138,7 @@ describe('UsersService', () => {
       expect(result).toHaveLength(2);
       expect(mockPrisma.user.findMany).toHaveBeenCalledWith({
         where: { tenant_id: TENANT_ID },
+        include: { role: true },
         orderBy: { created_at: 'desc' },
       });
     });
@@ -152,6 +161,7 @@ describe('UsersService', () => {
       expect(result.id).toBe('user-001');
       expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({
         where: { id: 'user-001', tenant_id: TENANT_ID },
+        include: { role: true },
       });
     });
 
@@ -179,6 +189,7 @@ describe('UsersService', () => {
       expect(mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-001' },
         data: { name: 'Juan Actualizado' },
+        include: { role: true },
       });
     });
 
@@ -223,6 +234,7 @@ describe('UsersService', () => {
       expect(mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-001' },
         data: { password_hash: 'hashed-pw' },
+        include: { role: true },
       });
     });
   });
@@ -238,6 +250,7 @@ describe('UsersService', () => {
       expect(mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-001' },
         data: { is_active: false },
+        include: { role: true },
       });
     });
 
@@ -263,6 +276,7 @@ describe('UsersService', () => {
       expect(mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-001' },
         data: { is_active: true },
+        include: { role: true },
       });
     });
 

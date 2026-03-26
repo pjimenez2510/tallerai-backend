@@ -1,10 +1,9 @@
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { UserRole } from '@prisma/client';
 import { RolesGuard } from './roles.guard';
 
 const makeContext = (
-  role: string | undefined,
+  roleSlug: string | undefined,
   handler = jest.fn(),
   classRef = jest.fn(),
 ): ExecutionContext =>
@@ -13,8 +12,15 @@ const makeContext = (
     getClass: () => classRef,
     switchToHttp: () => ({
       getRequest: () => ({
-        user: role
-          ? { id: 'u1', tenantId: 't1', role, email: 'a@b.com' }
+        user: roleSlug
+          ? {
+              id: 'u1',
+              tenantId: 't1',
+              roleSlug,
+              email: 'a@b.com',
+              roleId: null,
+              permissions: [],
+            }
           : undefined,
       }),
     }),
@@ -31,36 +37,32 @@ describe('RolesGuard', () => {
 
   it('should allow access when no roles are required', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
-    const ctx = makeContext(UserRole.mecanico);
+    const ctx = makeContext('mecanico');
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
   it('should allow access when roles array is empty', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([]);
-    const ctx = makeContext(UserRole.mecanico);
+    const ctx = makeContext('mecanico');
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
   it('should allow access when user has a required role', () => {
     jest
       .spyOn(reflector, 'getAllAndOverride')
-      .mockReturnValue([UserRole.admin, UserRole.jefe_taller]);
-    const ctx = makeContext(UserRole.admin);
+      .mockReturnValue(['admin', 'jefe_taller']);
+    const ctx = makeContext('admin');
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
   it('should deny access when user does not have a required role', () => {
-    jest
-      .spyOn(reflector, 'getAllAndOverride')
-      .mockReturnValue([UserRole.admin]);
-    const ctx = makeContext(UserRole.mecanico);
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['admin']);
+    const ctx = makeContext('mecanico');
     expect(guard.canActivate(ctx)).toBe(false);
   });
 
   it('should deny access when no user is present', () => {
-    jest
-      .spyOn(reflector, 'getAllAndOverride')
-      .mockReturnValue([UserRole.admin]);
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['admin']);
     const ctx = makeContext(undefined);
     expect(guard.canActivate(ctx)).toBe(false);
   });
@@ -68,16 +70,14 @@ describe('RolesGuard', () => {
   it('should allow jefe_taller when jefe_taller is in required roles', () => {
     jest
       .spyOn(reflector, 'getAllAndOverride')
-      .mockReturnValue([UserRole.admin, UserRole.jefe_taller]);
-    const ctx = makeContext(UserRole.jefe_taller);
+      .mockReturnValue(['admin', 'jefe_taller']);
+    const ctx = makeContext('jefe_taller');
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
   it('should deny recepcionista when only admin is required', () => {
-    jest
-      .spyOn(reflector, 'getAllAndOverride')
-      .mockReturnValue([UserRole.admin]);
-    const ctx = makeContext(UserRole.recepcionista);
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['admin']);
+    const ctx = makeContext('recepcionista');
     expect(guard.canActivate(ctx)).toBe(false);
   });
 });
