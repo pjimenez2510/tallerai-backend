@@ -284,18 +284,21 @@ model WorkOrder {
   total            Decimal           @default(0) @db.Decimal(12, 2)
   client_signature String?           @db.Text
   signature_date   DateTime?
+  damage_map       Json?
+  damage_notes     String?           @db.VarChar(2000)
   created_at       DateTime          @default(now())
   updated_at       DateTime          @updatedAt
 
   // Relations
-  tenant      Tenant          @relation(fields: [tenant_id], references: [id])
-  client      Client          @relation(fields: [client_id], references: [id])
-  vehicle     Vehicle         @relation(fields: [vehicle_id], references: [id])
-  mechanic    User?           @relation("assigned_mechanic", fields: [assigned_to], references: [id])
-  parent      WorkOrder?      @relation("supplements", fields: [parent_id], references: [id])
-  supplements WorkOrder[]     @relation("supplements")
+  tenant      Tenant                  @relation(fields: [tenant_id], references: [id])
+  client      Client                  @relation(fields: [client_id], references: [id])
+  vehicle     Vehicle                 @relation(fields: [vehicle_id], references: [id])
+  mechanic    User?                   @relation("assigned_mechanic", fields: [assigned_to], references: [id])
+  parent      WorkOrder?              @relation("supplements", fields: [parent_id], references: [id])
+  supplements WorkOrder[]             @relation("supplements")
   tasks       WorkOrderTask[]
   parts       WorkOrderPart[]
+  attachments WorkOrderAttachment[]
 
   @@unique([tenant_id, order_number])
   @@index([tenant_id, status])
@@ -380,6 +383,23 @@ model PurchaseOrderItem {
 
   @@index([purchase_order_id])
   @@map("purchase_order_items")
+}
+
+model WorkOrderAttachment {
+  id            String   @id @default(uuid())
+  work_order_id String
+  filename      String   @db.VarChar(255)
+  mime_type     String   @db.VarChar(100)
+  size          Int
+  data          String   @db.Text
+  description   String?  @db.VarChar(500)
+  uploaded_by   String?
+  created_at    DateTime @default(now())
+
+  work_order WorkOrder @relation(fields: [work_order_id], references: [id], onDelete: Cascade)
+
+  @@index([work_order_id])
+  @@map("work_order_attachments")
 }
 
 model RefreshToken {
