@@ -8,10 +8,9 @@ import { JwtPayload } from '../interfaces/auth-response.interface';
 export interface AuthenticatedUser {
   id: string;
   tenantId: string;
-  role: string;
+  roleSlug: string | null;
   email: string;
   roleId: string | null;
-  roleSlug: string | null;
   permissions: string[];
 }
 
@@ -40,7 +39,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         is_active: true,
       },
       include: {
-        role_ref: true,
+        role: true,
       },
     });
 
@@ -51,11 +50,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       id: user.id,
       tenantId: user.tenant_id,
-      role: user.role,
+      roleSlug: user.role.slug,
       email: user.email,
       roleId: user.role_id,
-      roleSlug: user.role_ref?.slug ?? null,
-      permissions: user.role_ref?.permissions ?? [],
+      permissions: user.role.permissions,
     };
   }
 }

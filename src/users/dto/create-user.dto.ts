@@ -1,8 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 import {
   IsEmail,
-  IsEnum,
   IsOptional,
   IsString,
   IsUUID,
@@ -38,24 +36,16 @@ export class CreateUserDto {
   })
   password!: string;
 
-  @ApiProperty({ enum: UserRole, example: 'mecanico' })
-  @IsEnum(UserRole, {
-    message:
-      'El rol debe ser uno de: admin, jefe_taller, recepcionista, mecanico',
+  @ApiProperty({
+    example: 'uuid-of-role',
+    description: 'ID of the role to assign to the user',
   })
-  role!: UserRole;
+  @IsUUID()
+  roleId!: string;
 
   @ApiPropertyOptional({ example: '0998765432', maxLength: 20 })
   @IsOptional()
   @IsString()
   @MaxLength(20)
   phone?: string;
-
-  @ApiPropertyOptional({
-    example: 'uuid-of-role',
-    description: 'ID of the configurable role to assign to the user',
-  })
-  @IsOptional()
-  @IsUUID()
-  roleId?: string;
 }

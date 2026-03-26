@@ -35,14 +35,14 @@ export class UsersService {
         name: dto.name,
         email: dto.email,
         password_hash: passwordHash,
-        role: dto.role,
-        role_id: dto.roleId ?? null,
+        role_id: dto.roleId,
         phone: dto.phone,
       },
+      include: { role: true },
     });
 
     this.logger.info(
-      { userId: user.id, tenantId, role: dto.role },
+      { userId: user.id, tenantId, roleId: dto.roleId },
       'User created',
     );
 
@@ -54,6 +54,7 @@ export class UsersService {
 
     const users = await this.prisma.user.findMany({
       where: { tenant_id: tenantId },
+      include: { role: true },
       orderBy: { created_at: 'desc' },
     });
 
@@ -65,6 +66,7 @@ export class UsersService {
 
     const user = await this.prisma.user.findFirst({
       where: { id, tenant_id: tenantId },
+      include: { role: true },
     });
 
     if (!user) {
@@ -92,7 +94,6 @@ export class UsersService {
     const data: Record<string, unknown> = {};
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.email !== undefined) data.email = dto.email;
-    if (dto.role !== undefined) data.role = dto.role;
     if (dto.roleId !== undefined) data.role_id = dto.roleId;
     if (dto.phone !== undefined) data.phone = dto.phone;
     if (dto.password !== undefined) {
@@ -102,6 +103,7 @@ export class UsersService {
     const user = await this.prisma.user.update({
       where: { id },
       data,
+      include: { role: true },
     });
 
     this.logger.info({ userId: id, tenantId }, 'User updated');
@@ -123,6 +125,7 @@ export class UsersService {
     const user = await this.prisma.user.update({
       where: { id },
       data: { is_active: false },
+      include: { role: true },
     });
 
     this.logger.info({ userId: id, tenantId }, 'User deactivated');
@@ -144,6 +147,7 @@ export class UsersService {
     const user = await this.prisma.user.update({
       where: { id },
       data: { is_active: true },
+      include: { role: true },
     });
 
     this.logger.info({ userId: id, tenantId }, 'User activated');
@@ -169,7 +173,8 @@ export class UsersService {
     id: string;
     name: string;
     email: string;
-    role: string;
+    role_id: string;
+    role: { slug: string };
     phone: string | null;
     avatar_url: string | null;
     is_active: boolean;
@@ -180,7 +185,8 @@ export class UsersService {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role as UserResponse['role'],
+      roleId: user.role_id,
+      roleSlug: user.role.slug,
       phone: user.phone,
       avatarUrl: user.avatar_url,
       isActive: user.is_active,

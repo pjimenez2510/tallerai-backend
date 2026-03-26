@@ -1,10 +1,7 @@
-import { UserRole } from '@prisma/client';
-
 export interface AuthUserPayload {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
   roleId: string | null;
   roleSlug: string | null;
   permissions: string[];
@@ -40,7 +37,6 @@ export interface MeResponse {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
   roleId: string | null;
   roleName: string | null;
   roleSlug: string | null;
@@ -54,7 +50,7 @@ export interface MeResponse {
 export interface JwtPayload {
   sub: string;
   tenantId: string;
-  role: UserRole;
+  roleSlug: string | null;
   email: string;
   roleId?: string | null;
 }

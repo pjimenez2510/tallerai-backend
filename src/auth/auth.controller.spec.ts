@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { UserRole } from '@prisma/client';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -20,7 +19,6 @@ const mockRegisterResponse: RegisterResponse = {
     id: 'user-uuid',
     name: 'Admin Test',
     email: 'admin@test.com',
-    role: UserRole.admin,
     roleId: 'role-uuid',
     roleSlug: 'admin',
     permissions: ['dashboard.view'],
@@ -40,7 +38,6 @@ const mockLoginResponse: LoginResponse = {
     id: 'user-uuid',
     name: 'Admin Test',
     email: 'admin@test.com',
-    role: UserRole.admin,
     roleId: 'role-uuid',
     roleSlug: 'admin',
     permissions: ['dashboard.view'],
@@ -64,7 +61,6 @@ const mockMeResponse: MeResponse = {
   id: 'user-uuid',
   name: 'Admin Test',
   email: 'admin@test.com',
-  role: UserRole.admin,
   roleId: 'role-uuid',
   roleName: 'Administrador',
   roleSlug: 'admin',
@@ -138,11 +134,11 @@ describe('AuthController', () => {
       expect(result.data).toEqual(mockRegisterResponse);
     });
 
-    it('should return user payload with tenantId (camelCase)', async () => {
+    it('should return user payload with tenantId and roleSlug (camelCase)', async () => {
       const result = await controller.register(registerDto);
 
       expect(result.data.user.tenantId).toBe('tenant-uuid');
-      expect(result.data.user.role).toBe(UserRole.admin);
+      expect(result.data.user.roleSlug).toBe('admin');
     });
 
     it('should include both access and refresh tokens', async () => {
@@ -205,10 +201,9 @@ describe('AuthController', () => {
     const authenticatedUser: AuthenticatedUser = {
       id: 'user-uuid',
       tenantId: 'tenant-uuid',
-      role: 'admin',
+      roleSlug: 'admin',
       email: 'admin@test.com',
       roleId: null,
-      roleSlug: null,
       permissions: [],
     };
 

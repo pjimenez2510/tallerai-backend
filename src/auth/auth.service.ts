@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Role, UserRole } from '@prisma/client';
+import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import type { StringValue } from 'ms';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
@@ -57,7 +57,7 @@ export class AuthService {
     const accessToken = this.signAccessToken(
       user.id,
       tenant.id,
-      user.role,
+      adminRole.slug,
       user.email,
       user.role_id,
     );
@@ -81,7 +81,7 @@ export class AuthService {
   async login(dto: LoginDto): Promise<LoginResponse> {
     const user = await this.prisma.user.findFirst({
       where: { email: dto.email, is_active: true },
-      include: { tenant: true, role_ref: true },
+      include: { tenant: true, role: true },
     });
 
     if (!user) {
@@ -114,7 +114,7 @@ export class AuthService {
     const accessToken = this.signAccessToken(
       user.id,
       user.tenant_id,
-      user.role,
+      user.role.slug,
       user.email,
       user.role_id,
     );
@@ -128,7 +128,7 @@ export class AuthService {
     );
 
     return {
-      user: this.mapUser(user, user.tenant_id, user.role_ref),
+      user: this.mapUser(user, user.tenant_id, user.role),
       tenant: this.mapTenant(user.tenant),
       accessToken,
       refreshToken,
@@ -179,6 +179,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findFirst({
       where: { id: payload.sub, is_active: true },
+      include: { role: true },
     });
 
     if (!user) {
@@ -188,7 +189,7 @@ export class AuthService {
     const newAccessToken = this.signAccessToken(
       user.id,
       user.tenant_id,
-      user.role,
+      user.role.slug,
       user.email,
       user.role_id,
     );
@@ -237,7 +238,7 @@ export class AuthService {
   async getMe(userId: string, tenantId: string): Promise<MeResponse> {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, tenant_id: tenantId, is_active: true },
-      include: { tenant: true, role_ref: true },
+      include: { tenant: true, role: true },
     });
 
     if (!user) {
@@ -248,11 +249,10 @@ export class AuthService {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
       roleId: user.role_id,
-      roleName: user.role_ref?.name ?? null,
-      roleSlug: user.role_ref?.slug ?? null,
-      permissions: user.role_ref?.permissions ?? [],
+      roleName: user.role.name,
+      roleSlug: user.role.slug,
+      permissions: user.role.permissions,
       phone: user.phone,
       avatarUrl: user.avatar_url,
       tenantId: user.tenant_id,
@@ -267,7 +267,7 @@ export class AuthService {
   ): Promise<MeResponse> {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, tenant_id: tenantId, is_active: true },
-      include: { tenant: true, role_ref: true },
+      include: { tenant: true, role: true },
     });
 
     if (!user) {
@@ -282,7 +282,7 @@ export class AuthService {
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data,
-      include: { tenant: true, role_ref: true },
+      include: { tenant: true, role: true },
     });
 
     this.logger.info({ userId, tenantId }, 'User profile updated');
@@ -291,11 +291,10 @@ export class AuthService {
       id: updated.id,
       name: updated.name,
       email: updated.email,
-      role: updated.role,
       roleId: updated.role_id,
-      roleName: updated.role_ref?.name ?? null,
-      roleSlug: updated.role_ref?.slug ?? null,
-      permissions: updated.role_ref?.permissions ?? [],
+      roleName: updated.role.name,
+      roleSlug: updated.role.slug,
+      permissions: updated.role.permissions,
       phone: updated.phone,
       avatarUrl: updated.avatar_url,
       tenantId: updated.tenant_id,
@@ -385,7 +384,6 @@ export class AuthService {
           name: dto.adminName,
           email: dto.adminEmail,
           password_hash: passwordHash,
-          role: UserRole.admin,
           role_id: adminRole.id,
           phone: dto.adminPhone,
         },
@@ -398,11 +396,17 @@ export class AuthService {
   private signAccessToken(
     userId: string,
     tenantId: string,
-    role: UserRole,
+    roleSlug: string | null,
     email: string,
     roleId?: string | null,
   ): string {
-    const payload: JwtPayload = { sub: userId, tenantId, role, email, roleId };
+    const payload: JwtPayload = {
+      sub: userId,
+      tenantId,
+      roleSlug,
+      email,
+      roleId,
+    };
     const secret = this.configService.get<string>('jwt.secret');
     const rawExpiry =
       this.configService.get<string>('jwt.accessExpiresIn') ?? '15m';
@@ -446,8 +450,7 @@ export class AuthService {
       id: string;
       name: string;
       email: string;
-      role: UserRole;
-      role_id?: string | null;
+      role_id: string;
     },
     tenantId: string,
     roleRef: Role | null | undefined,
@@ -456,8 +459,7 @@ export class AuthService {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
-      roleId: user.role_id ?? null,
+      roleId: user.role_id,
       roleSlug: roleRef?.slug ?? null,
       permissions: roleRef?.permissions ?? [],
       tenantId,

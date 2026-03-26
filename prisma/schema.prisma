@@ -14,13 +14,6 @@ datasource db {
 // ENUMS
 // ==========================================
 
-enum UserRole {
-  admin
-  jefe_taller
-  recepcionista
-  mecanico
-}
-
 enum WorkOrderStatus {
   recepcion
   diagnostico
@@ -94,8 +87,7 @@ model User {
   name          String   @db.VarChar(200)
   email         String   @db.VarChar(200)
   password_hash String   @db.VarChar(255)
-  role          UserRole @default(mecanico)
-  role_id       String?
+  role_id       String
   phone         String?  @db.VarChar(20)
   avatar_url    String?  @db.VarChar(1000)
   is_active     Boolean  @default(true)
@@ -103,14 +95,13 @@ model User {
   updated_at    DateTime @updatedAt
 
   // Relations
-  tenant              Tenant         @relation(fields: [tenant_id], references: [id])
-  role_ref            Role?          @relation(fields: [role_id], references: [id])
-  refresh_tokens      RefreshToken[]
-  assigned_work_orders WorkOrder[]   @relation("assigned_mechanic")
-  notifications       Notification[]
+  tenant               Tenant         @relation(fields: [tenant_id], references: [id])
+  role                 Role           @relation(fields: [role_id], references: [id])
+  refresh_tokens       RefreshToken[]
+  assigned_work_orders WorkOrder[]    @relation("assigned_mechanic")
+  notifications        Notification[]
 
   @@unique([tenant_id, email])
-  @@index([tenant_id, role])
   @@index([tenant_id, is_active])
   @@index([tenant_id, role_id])
   @@map("users")
