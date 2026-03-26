@@ -10,11 +10,14 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/tenant/tenant.context';
 import { AddPartDto } from './dto/add-part.dto';
+import { CreateAttachmentDto } from './dto/create-attachment.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import {
+  AttachmentFullResponse,
+  AttachmentMetaResponse,
   SupplementSummary,
   VehicleTimelineEntry,
   WorkOrderPartResponse,
@@ -27,6 +30,8 @@ import {
   QuoteTaskItem,
   QuotePartItem,
 } from './interfaces/quote-response.interface';
+
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
 const VALID_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
   recepcion: [WorkOrderStatus.diagnostico, WorkOrderStatus.cancelado],
@@ -49,6 +54,18 @@ const INCLUDE_RELATIONS = {
   },
   supplements: {
     select: { id: true, order_number: true, status: true, created_at: true },
+    orderBy: { created_at: 'asc' as const },
+  },
+  attachments: {
+    select: {
+      id: true,
+      filename: true,
+      mime_type: true,
+      size: true,
+      description: true,
+      uploaded_by: true,
+      created_at: true,
+    },
     orderBy: { created_at: 'asc' as const },
   },
 };
@@ -175,6 +192,12 @@ export class WorkOrdersService {
     if (dto.clientSignature !== undefined) {
       data.client_signature = dto.clientSignature;
       data.signature_date = new Date();
+    }
+    if (dto.damageMap !== undefined) {
+      data.damage_map = dto.damageMap as Prisma.InputJsonValue;
+    }
+    if (dto.damageNotes !== undefined) {
+      data.damage_notes = dto.damageNotes;
     }
 
     const workOrder = await this.prisma.workOrder.update({
@@ -538,6 +561,150 @@ export class WorkOrdersService {
     );
   }
 
+  async addAttachment(
+    workOrderId: string,
+    dto: CreateAttachmentDto,
+    uploadedBy?: string,
+  ): Promise<AttachmentMetaResponse> {
+    const tenantId = this.tenantContext.getTenantId();
+    await this.assertWorkOrderExists(workOrderId, tenantId);
+
+    const sizeInBytes = Buffer.byteLength(dto.data, 'base64');
+    if (sizeInBytes > MAX_FILE_SIZE_BYTES) {
+      throw new BadRequestException(
+        `El archivo excede el tamaño máximo permitido de 5MB (recibido: ${Math.round(sizeInBytes / 1024)}KB)`,
+      );
+    }
+
+    const attachment = await this.prisma.workOrderAttachment.create({
+      data: {
+        work_order_id: workOrderId,
+        filename: dto.filename,
+        mime_type: dto.mimeType,
+        size: sizeInBytes,
+        data: dto.data,
+        description: dto.description,
+        uploaded_by: uploadedBy,
+      },
+      select: {
+        id: true,
+        filename: true,
+        mime_type: true,
+        size: true,
+        description: true,
+        uploaded_by: true,
+        created_at: true,
+      },
+    });
+
+    this.logger.info(
+      {
+        workOrderId,
+        attachmentId: attachment.id,
+        tenantId,
+        filename: dto.filename,
+      },
+      'Attachment added to work order',
+    );
+
+    return this.mapAttachmentMeta(attachment);
+  }
+
+  async listAttachments(
+    workOrderId: string,
+  ): Promise<AttachmentMetaResponse[]> {
+    const tenantId = this.tenantContext.getTenantId();
+    await this.assertWorkOrderExists(workOrderId, tenantId);
+
+    const attachments = await this.prisma.workOrderAttachment.findMany({
+      where: { work_order_id: workOrderId },
+      select: {
+        id: true,
+        filename: true,
+        mime_type: true,
+        size: true,
+        description: true,
+        uploaded_by: true,
+        created_at: true,
+      },
+      orderBy: { created_at: 'asc' },
+    });
+
+    return attachments.map((a) => this.mapAttachmentMeta(a));
+  }
+
+  async getAttachment(
+    workOrderId: string,
+    attachmentId: string,
+  ): Promise<AttachmentFullResponse> {
+    const tenantId = this.tenantContext.getTenantId();
+    await this.assertWorkOrderExists(workOrderId, tenantId);
+
+    const attachment = await this.prisma.workOrderAttachment.findFirst({
+      where: { id: attachmentId, work_order_id: workOrderId },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Archivo adjunto no encontrado');
+    }
+
+    return {
+      id: attachment.id,
+      filename: attachment.filename,
+      mimeType: attachment.mime_type,
+      size: attachment.size,
+      description: attachment.description,
+      uploadedBy: attachment.uploaded_by,
+      data: attachment.data,
+      createdAt: attachment.created_at.toISOString(),
+    };
+  }
+
+  async removeAttachment(
+    workOrderId: string,
+    attachmentId: string,
+  ): Promise<void> {
+    const tenantId = this.tenantContext.getTenantId();
+    await this.assertWorkOrderExists(workOrderId, tenantId);
+
+    const attachment = await this.prisma.workOrderAttachment.findFirst({
+      where: { id: attachmentId, work_order_id: workOrderId },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Archivo adjunto no encontrado');
+    }
+
+    await this.prisma.workOrderAttachment.delete({
+      where: { id: attachmentId },
+    });
+
+    this.logger.info(
+      { workOrderId, attachmentId, tenantId },
+      'Attachment removed from work order',
+    );
+  }
+
+  private mapAttachmentMeta(attachment: {
+    id: string;
+    filename: string;
+    mime_type: string;
+    size: number;
+    description: string | null;
+    uploaded_by: string | null;
+    created_at: Date;
+  }): AttachmentMetaResponse {
+    return {
+      id: attachment.id,
+      filename: attachment.filename,
+      mimeType: attachment.mime_type,
+      size: attachment.size,
+      description: attachment.description,
+      uploadedBy: attachment.uploaded_by,
+      createdAt: attachment.created_at.toISOString(),
+    };
+  }
+
   async getQuote(id: string): Promise<QuoteResponse> {
     const tenantId = this.tenantContext.getTenantId();
 
@@ -583,8 +750,12 @@ export class WorkOrdersService {
       throw new NotFoundException('Orden de trabajo no encontrada');
     }
 
-    const tenantSettings = (workOrder.tenant.settings ?? {}) as Record<string, unknown>;
-    const taxRate = typeof tenantSettings.taxRate === 'number' ? tenantSettings.taxRate : 12;
+    const tenantSettings = (workOrder.tenant.settings ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const taxRate =
+      typeof tenantSettings.taxRate === 'number' ? tenantSettings.taxRate : 12;
     const IVA_RATE = taxRate / 100;
 
     const tasks: QuoteTaskItem[] = workOrder.tasks.map((t) => ({
@@ -787,6 +958,8 @@ export class WorkOrdersService {
     total: Prisma.Decimal;
     client_signature: string | null;
     signature_date: Date | null;
+    damage_map: Prisma.JsonValue | null;
+    damage_notes: string | null;
     tasks: Array<{
       id: string;
       description: string;
@@ -808,6 +981,15 @@ export class WorkOrdersService {
       id: string;
       order_number: string;
       status: WorkOrderStatus;
+      created_at: Date;
+    }>;
+    attachments?: Array<{
+      id: string;
+      filename: string;
+      mime_type: string;
+      size: number;
+      description: string | null;
+      uploaded_by: string | null;
       created_at: Date;
     }>;
     created_at: Date;
@@ -838,6 +1020,8 @@ export class WorkOrdersService {
       total: Number(wo.total),
       clientSignature: wo.client_signature ?? null,
       signatureDate: wo.signature_date?.toISOString() ?? null,
+      damageMap: wo.damage_map ?? null,
+      damageNotes: wo.damage_notes ?? null,
       tasks: wo.tasks.map(
         (t): WorkOrderTaskResponse => ({
           id: t.id,
