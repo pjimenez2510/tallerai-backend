@@ -46,4 +46,22 @@ export class UpdateBusinessSettingsDto {
   @IsString()
   @MaxLength(200)
   workingHours?: string;
+
+  @ApiPropertyOptional({
+    description: 'Plantilla de imagen del vehículo para mapa de daños (base64 o URL). Opciones: sedan, camioneta, suv, moto, bus, o una imagen custom.',
+    maxLength: 50,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  damageMapTemplate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Imagen custom para el mapa de daños (base64 data URI)',
+    maxLength: 500000,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500000)
+  damageMapCustomImage?: string;
 }
