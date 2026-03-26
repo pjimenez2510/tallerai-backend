@@ -4,6 +4,7 @@ import {
   IsDateString,
   IsEnum,
   IsOptional,
+  IsObject,
   IsString,
   IsUUID,
   MaxLength,
@@ -69,4 +70,21 @@ export class UpdateWorkOrderDto {
     message: 'La firma debe ser un data URL de imagen válido (PNG, JPEG o SVG)',
   })
   clientSignature?: string;
+
+  @ApiPropertyOptional({
+    description: 'Mapa de daños del vehículo en formato JSON de fabric.js',
+    example: { version: '5.3.0', objects: [] },
+  })
+  @IsOptional()
+  @IsObject()
+  damageMap?: object;
+
+  @ApiPropertyOptional({
+    example: 'Rayón en puerta delantera izquierda, abolladuras en capó',
+    description: 'Notas descriptivas sobre los daños del vehículo',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  damageNotes?: string;
 }
