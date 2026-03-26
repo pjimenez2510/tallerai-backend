@@ -550,6 +550,7 @@ export class WorkOrdersService {
             ruc: true,
             phone: true,
             address: true,
+            settings: true,
           },
         },
         client: {
@@ -582,7 +583,9 @@ export class WorkOrdersService {
       throw new NotFoundException('Orden de trabajo no encontrada');
     }
 
-    const IVA_RATE = 0.12;
+    const tenantSettings = (workOrder.tenant.settings ?? {}) as Record<string, unknown>;
+    const taxRate = typeof tenantSettings.taxRate === 'number' ? tenantSettings.taxRate : 12;
+    const IVA_RATE = taxRate / 100;
 
     const tasks: QuoteTaskItem[] = workOrder.tasks.map((t) => ({
       id: t.id,
