@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { WorkOrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { PublicWorkOrderResponse } from './interfaces/public-work-order.interface';
+import {
+  PublicVehiclePortalResponse,
+  PublicWorkOrderResponse,
+} from './interfaces/public-work-order.interface';
 
 const STATUS_LABELS: Record<WorkOrderStatus, string> = {
   [WorkOrderStatus.recepcion]: 'Recepción',
@@ -57,6 +60,57 @@ export class PublicService {
       completedDate: workOrder.completed_date?.toISOString() ?? null,
       deliveredDate: workOrder.delivered_date?.toISOString() ?? null,
       tenantName: workOrder.tenant.name,
+    };
+  }
+
+  async findVehicleByPlate(
+    plate: string,
+  ): Promise<PublicVehiclePortalResponse> {
+    const normalizedPlate = plate.toUpperCase().trim();
+
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: { plate: normalizedPlate },
+      select: {
+        plate: true,
+        brand: true,
+        model: true,
+        year: true,
+        color: true,
+        tenant: { select: { name: true } },
+        work_orders: {
+          select: {
+            order_number: true,
+            status: true,
+            description: true,
+            created_at: true,
+            completed_date: true,
+            delivered_date: true,
+          },
+          orderBy: { created_at: 'desc' },
+        },
+      },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+
+    return {
+      plate: vehicle.plate,
+      brand: vehicle.brand,
+      model: vehicle.model,
+      year: vehicle.year,
+      color: vehicle.color,
+      tenantName: vehicle.tenant.name,
+      workOrders: vehicle.work_orders.map((wo) => ({
+        orderNumber: wo.order_number,
+        status: wo.status,
+        statusLabel: STATUS_LABELS[wo.status],
+        description: wo.description.substring(0, 150),
+        createdAt: wo.created_at.toISOString(),
+        completedDate: wo.completed_date?.toISOString() ?? null,
+        deliveredDate: wo.delivered_date?.toISOString() ?? null,
+      })),
     };
   }
 }

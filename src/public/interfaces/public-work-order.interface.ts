@@ -12,3 +12,23 @@ export interface PublicWorkOrderResponse {
   deliveredDate: string | null;
   tenantName: string;
 }
+
+export interface PublicWorkOrderSummary {
+  orderNumber: string;
+  status: string;
+  statusLabel: string;
+  description: string;
+  createdAt: string;
+  completedDate: string | null;
+  deliveredDate: string | null;
+}
+
+export interface PublicVehiclePortalResponse {
+  plate: string;
+  brand: string;
+  model: string;
+  year: number;
+  color: string | null;
+  tenantName: string;
+  workOrders: PublicWorkOrderSummary[];
+}
