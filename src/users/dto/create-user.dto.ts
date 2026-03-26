@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
   MinLength,
@@ -49,4 +50,12 @@ export class CreateUserDto {
   @IsString()
   @MaxLength(20)
   phone?: string;
+
+  @ApiPropertyOptional({
+    example: 'uuid-of-role',
+    description: 'ID of the configurable role to assign to the user',
+  })
+  @IsOptional()
+  @IsUUID()
+  roleId?: string;
 }

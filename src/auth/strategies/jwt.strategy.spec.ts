@@ -29,12 +29,19 @@ describe('JwtStrategy', () => {
   });
 
   it('should return authenticated user when user exists and is active', async () => {
+    const mockRole = {
+      id: 'role-uuid',
+      slug: 'admin',
+      permissions: ['dashboard.view'],
+    };
     const mockUser = {
       id: 'user-uuid',
       tenant_id: 'tenant-uuid',
       role: UserRole.admin,
       email: 'admin@test.com',
       is_active: true,
+      role_id: 'role-uuid',
+      role_ref: mockRole,
     };
     mockPrisma.user.findFirst.mockResolvedValue(mockUser);
 
@@ -50,15 +57,44 @@ describe('JwtStrategy', () => {
       tenantId: 'tenant-uuid',
       role: UserRole.admin,
       email: 'admin@test.com',
+      roleId: 'role-uuid',
+      roleSlug: 'admin',
+      permissions: ['dashboard.view'],
     });
   });
 
-  it('should query with user id, tenant id, and is_active', async () => {
+  it('should return null roleSlug and empty permissions when no role_ref', async () => {
+    const mockUser = {
+      id: 'user-uuid',
+      tenant_id: 'tenant-uuid',
+      role: UserRole.admin,
+      email: 'admin@test.com',
+      is_active: true,
+      role_id: null,
+      role_ref: null,
+    };
+    mockPrisma.user.findFirst.mockResolvedValue(mockUser);
+
+    const result = await strategy.validate({
+      sub: 'user-uuid',
+      tenantId: 'tenant-uuid',
+      role: UserRole.admin,
+      email: 'admin@test.com',
+    });
+
+    expect(result.roleId).toBeNull();
+    expect(result.roleSlug).toBeNull();
+    expect(result.permissions).toEqual([]);
+  });
+
+  it('should query with user id, tenant id, is_active and include role_ref', async () => {
     mockPrisma.user.findFirst.mockResolvedValue({
       id: 'user-uuid',
       tenant_id: 'tenant-uuid',
       role: UserRole.admin,
       email: 'admin@test.com',
+      role_id: null,
+      role_ref: null,
     });
 
     await strategy.validate({
@@ -73,6 +109,9 @@ describe('JwtStrategy', () => {
         id: 'user-uuid',
         tenant_id: 'tenant-uuid',
         is_active: true,
+      },
+      include: {
+        role_ref: true,
       },
     });
   });

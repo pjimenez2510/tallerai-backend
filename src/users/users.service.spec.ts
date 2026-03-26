@@ -84,6 +84,7 @@ describe('UsersService', () => {
           email: dto.email,
           password_hash: 'hashed-pw',
           role: dto.role,
+          role_id: null,
           phone: dto.phone,
         },
       });

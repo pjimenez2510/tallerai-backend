@@ -17,20 +17,19 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, Roles, RolesGuard } from '../auth';
+import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
 import { PurchasesService } from './purchases.service';
 
 @ApiTags('Purchases')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('purchases')
 export class PurchasesController {
   constructor(private readonly purchasesService: PurchasesService) {}
 
   @Post()
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('purchases.create')
   @ApiOperation({ summary: 'Crear orden de compra' })
   @ApiResponse({ status: 201, description: 'Orden de compra creada' })
   @ApiResponse({ status: 404, description: 'Producto no encontrado' })
@@ -40,7 +39,7 @@ export class PurchasesController {
   }
 
   @Get()
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('purchases.view')
   @ApiOperation({ summary: 'Listar órdenes de compra del taller' })
   @ApiResponse({ status: 200, description: 'Lista de órdenes de compra' })
   async findAll() {
@@ -49,7 +48,7 @@ export class PurchasesController {
   }
 
   @Get(':id')
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('purchases.view')
   @ApiOperation({ summary: 'Obtener orden de compra por ID' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Orden de compra encontrada' })
@@ -61,7 +60,7 @@ export class PurchasesController {
 
   @Patch(':id/receive')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('purchases.receive')
   @ApiOperation({
     summary:
       'Marcar orden de compra como recibida: actualiza stock y costo promedio ponderado',
@@ -87,7 +86,7 @@ export class PurchasesController {
 
   @Patch(':id/cancel')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.admin, UserRole.jefe_taller)
+  @RequirePermissions('purchases.cancel')
   @ApiOperation({ summary: 'Cancelar orden de compra' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Orden de compra cancelada' })

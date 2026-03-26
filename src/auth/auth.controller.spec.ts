@@ -13,6 +13,7 @@ import {
   RefreshResponse,
   RegisterResponse,
 } from './interfaces/auth-response.interface';
+import { AuthenticatedUser } from './strategies/jwt.strategy';
 
 const mockRegisterResponse: RegisterResponse = {
   user: {
@@ -20,6 +21,9 @@ const mockRegisterResponse: RegisterResponse = {
     name: 'Admin Test',
     email: 'admin@test.com',
     role: UserRole.admin,
+    roleId: 'role-uuid',
+    roleSlug: 'admin',
+    permissions: ['dashboard.view'],
     tenantId: 'tenant-uuid',
   },
   tenant: {
@@ -37,6 +41,9 @@ const mockLoginResponse: LoginResponse = {
     name: 'Admin Test',
     email: 'admin@test.com',
     role: UserRole.admin,
+    roleId: 'role-uuid',
+    roleSlug: 'admin',
+    permissions: ['dashboard.view'],
     tenantId: 'tenant-uuid',
   },
   tenant: {
@@ -58,6 +65,10 @@ const mockMeResponse: MeResponse = {
   name: 'Admin Test',
   email: 'admin@test.com',
   role: UserRole.admin,
+  roleId: 'role-uuid',
+  roleName: 'Administrador',
+  roleSlug: 'admin',
+  permissions: ['dashboard.view'],
   phone: '0999999999',
   avatarUrl: null,
   tenantId: 'tenant-uuid',
@@ -191,11 +202,14 @@ describe('AuthController', () => {
   });
 
   describe('getMe', () => {
-    const authenticatedUser = {
+    const authenticatedUser: AuthenticatedUser = {
       id: 'user-uuid',
       tenantId: 'tenant-uuid',
       role: 'admin',
       email: 'admin@test.com',
+      roleId: null,
+      roleSlug: null,
+      permissions: [],
     };
 
     it('should call authService.getMe with user id and tenantId', async () => {

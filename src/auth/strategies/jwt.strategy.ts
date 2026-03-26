@@ -10,6 +10,9 @@ export interface AuthenticatedUser {
   tenantId: string;
   role: string;
   email: string;
+  roleId: string | null;
+  roleSlug: string | null;
+  permissions: string[];
 }
 
 @Injectable()
@@ -36,6 +39,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         tenant_id: payload.tenantId,
         is_active: true,
       },
+      include: {
+        role_ref: true,
+      },
     });
 
     if (!user) {
@@ -47,6 +53,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       tenantId: user.tenant_id,
       role: user.role,
       email: user.email,
+      roleId: user.role_id,
+      roleSlug: user.role_ref?.slug ?? null,
+      permissions: user.role_ref?.permissions ?? [],
     };
   }
 }

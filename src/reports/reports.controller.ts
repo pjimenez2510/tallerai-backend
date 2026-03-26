@@ -6,15 +6,14 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
-import { JwtAuthGuard, Roles, RolesGuard } from '../auth';
+import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { ReportsService } from './reports.service';
 import { WorkOrderReportDto } from './dto/work-order-report.dto';
 
 @ApiTags('Reports')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.admin, UserRole.jefe_taller)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('reports.view')
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}

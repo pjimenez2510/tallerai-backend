@@ -36,6 +36,7 @@ export class UsersService {
         email: dto.email,
         password_hash: passwordHash,
         role: dto.role,
+        role_id: dto.roleId ?? null,
         phone: dto.phone,
       },
     });
@@ -92,6 +93,7 @@ export class UsersService {
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.email !== undefined) data.email = dto.email;
     if (dto.role !== undefined) data.role = dto.role;
+    if (dto.roleId !== undefined) data.role_id = dto.roleId;
     if (dto.phone !== undefined) data.phone = dto.phone;
     if (dto.password !== undefined) {
       data.password_hash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
