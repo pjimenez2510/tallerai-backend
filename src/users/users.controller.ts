@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -20,6 +21,7 @@ import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth('access-token')
@@ -40,10 +42,10 @@ export class UsersController {
 
   @Get()
   @RequirePermissions('users.view')
-  @ApiOperation({ summary: 'Listar usuarios del taller' })
-  @ApiResponse({ status: 200, description: 'Lista de usuarios' })
-  async findAll() {
-    const data = await this.usersService.findAll();
+  @ApiOperation({ summary: 'Listar usuarios del taller (paginado)' })
+  @ApiResponse({ status: 200, description: 'Lista paginada de usuarios' })
+  async findAll(@Query() pagination: PaginationDto) {
+    const data = await this.usersService.findAll(pagination);
     return { message: 'Usuarios obtenidos exitosamente', data };
   }
 

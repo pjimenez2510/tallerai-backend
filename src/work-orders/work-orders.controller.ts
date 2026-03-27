@@ -30,6 +30,7 @@ import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { WorkOrdersService } from './work-orders.service';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Work Orders')
 @ApiBearerAuth('access-token')
@@ -49,16 +50,19 @@ export class WorkOrdersController {
 
   @Get()
   @RequirePermissions('work_orders.view')
-  @ApiOperation({ summary: 'Listar órdenes de trabajo' })
+  @ApiOperation({ summary: 'Listar órdenes de trabajo (paginado)' })
   @ApiQuery({
     name: 'status',
     required: false,
     enum: WorkOrderStatus,
     description: 'Filtrar por estado',
   })
-  @ApiResponse({ status: 200, description: 'Lista de OTs' })
-  async findAll(@Query('status') status?: WorkOrderStatus) {
-    const data = await this.workOrdersService.findAll(status);
+  @ApiResponse({ status: 200, description: 'Lista paginada de OTs' })
+  async findAll(
+    @Query() pagination: PaginationDto,
+    @Query('status') status?: WorkOrderStatus,
+  ) {
+    const data = await this.workOrdersService.findAll(pagination, status);
     return { message: 'Órdenes de trabajo obtenidas exitosamente', data };
   }
 

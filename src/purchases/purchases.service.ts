@@ -13,6 +13,11 @@ import {
   PurchaseOrderItemResponse,
   PurchaseOrderResponse,
 } from './interfaces/purchase-response.interface';
+import {
+  PaginationDto,
+  buildPaginatedResponse,
+} from '../common/dto/pagination.dto';
+import { PaginatedData } from '../common/interfaces/api-response.interface';
 
 type PurchaseOrderWithItems = Prisma.PurchaseOrderGetPayload<{
   include: {
@@ -84,20 +89,34 @@ export class PurchasesService {
     return this.mapPurchaseOrder(purchaseOrder);
   }
 
-  async findAll(): Promise<PurchaseOrderResponse[]> {
+  async findAll(
+    pagination: PaginationDto,
+  ): Promise<PaginatedData<PurchaseOrderResponse>> {
     const tenantId = this.tenantContext.getTenantId();
 
-    const orders = await this.prisma.purchaseOrder.findMany({
-      where: { tenant_id: tenantId },
-      include: {
-        items: {
-          include: { product: { select: { name: true, code: true } } },
-        },
+    const where = { tenant_id: tenantId };
+    const include = {
+      items: {
+        include: { product: { select: { name: true, code: true } } },
       },
-      orderBy: { created_at: 'desc' },
-    });
+    };
 
-    return orders.map((o) => this.mapPurchaseOrder(o));
+    const [orders, total] = await Promise.all([
+      this.prisma.purchaseOrder.findMany({
+        where,
+        include,
+        orderBy: { created_at: 'desc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+      }),
+      this.prisma.purchaseOrder.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(
+      orders.map((o) => this.mapPurchaseOrder(o)),
+      total,
+      pagination,
+    );
   }
 
   async findOne(id: string): Promise<PurchaseOrderResponse> {

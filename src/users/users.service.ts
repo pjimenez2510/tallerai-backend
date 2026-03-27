@@ -10,6 +10,11 @@ import { TenantContext } from '../common/tenant/tenant.context';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponse } from './interfaces/user-response.interface';
+import {
+  PaginationDto,
+  buildPaginatedResponse,
+} from '../common/dto/pagination.dto';
+import { PaginatedData } from '../common/interfaces/api-response.interface';
 
 const BCRYPT_ROUNDS = 10;
 
@@ -49,16 +54,29 @@ export class UsersService {
     return this.mapUser(user);
   }
 
-  async findAll(): Promise<UserResponse[]> {
+  async findAll(
+    pagination: PaginationDto,
+  ): Promise<PaginatedData<UserResponse>> {
     const tenantId = this.tenantContext.getTenantId();
 
-    const users = await this.prisma.user.findMany({
-      where: { tenant_id: tenantId },
-      include: { role: true },
-      orderBy: { created_at: 'desc' },
-    });
+    const where = { tenant_id: tenantId };
 
-    return users.map((u) => this.mapUser(u));
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        include: { role: true },
+        orderBy: { created_at: 'desc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(
+      users.map((u) => this.mapUser(u)),
+      total,
+      pagination,
+    );
   }
 
   async findOne(id: string): Promise<UserResponse> {

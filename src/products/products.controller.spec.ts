@@ -22,9 +22,17 @@ const mockProduct = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+const mockPaginatedResult = {
+  items: [mockProduct],
+  total: 1,
+  page: 1,
+  limit: 20,
+  totalPages: 1,
+};
+
 const mockService = {
   create: jest.fn().mockResolvedValue(mockProduct),
-  findAll: jest.fn().mockResolvedValue([mockProduct]),
+  findAll: jest.fn().mockResolvedValue(mockPaginatedResult),
   findOne: jest.fn().mockResolvedValue(mockProduct),
   update: jest.fn().mockResolvedValue({ ...mockProduct, name: 'Updated' }),
   deactivate: jest.fn().mockResolvedValue({ ...mockProduct, isActive: false }),
@@ -59,11 +67,12 @@ describe('ProductsController', () => {
   });
 
   describe('GET /products', () => {
-    it('should return all products', async () => {
-      const result = await controller.findAll();
+    it('should return paginated products', async () => {
+      const pagination = { page: 1, limit: 20, skip: 0 };
+      const result = await controller.findAll(pagination as never);
 
       expect(result.message).toBe('Productos obtenidos exitosamente');
-      expect(result.data).toHaveLength(1);
+      expect(result.data.items).toHaveLength(1);
     });
   });
 

@@ -9,6 +9,11 @@ import { TenantContext } from '../common/tenant/tenant.context';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { VehicleResponse } from './interfaces/vehicle-response.interface';
+import {
+  PaginationDto,
+  buildPaginatedResponse,
+} from '../common/dto/pagination.dto';
+import { PaginatedData } from '../common/interfaces/api-response.interface';
 
 @Injectable()
 export class VehiclesService {
@@ -52,16 +57,29 @@ export class VehiclesService {
     return this.mapVehicle(vehicle);
   }
 
-  async findAll(): Promise<VehicleResponse[]> {
+  async findAll(
+    pagination: PaginationDto,
+  ): Promise<PaginatedData<VehicleResponse>> {
     const tenantId = this.tenantContext.getTenantId();
 
-    const vehicles = await this.prisma.vehicle.findMany({
-      where: { tenant_id: tenantId, is_active: true },
-      include: { client: true },
-      orderBy: { created_at: 'desc' },
-    });
+    const where = { tenant_id: tenantId, is_active: true };
 
-    return vehicles.map((v) => this.mapVehicle(v));
+    const [vehicles, total] = await Promise.all([
+      this.prisma.vehicle.findMany({
+        where,
+        include: { client: true },
+        orderBy: { created_at: 'desc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+      }),
+      this.prisma.vehicle.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(
+      vehicles.map((v) => this.mapVehicle(v)),
+      total,
+      pagination,
+    );
   }
 
   async findByClient(clientId: string): Promise<VehicleResponse[]> {

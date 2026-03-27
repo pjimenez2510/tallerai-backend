@@ -23,6 +23,7 @@ import { CreateStockMovementDto } from './dto/create-stock-movement.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Products')
 @ApiBearerAuth('access-token')
@@ -43,10 +44,10 @@ export class ProductsController {
 
   @Get()
   @RequirePermissions('inventory.view')
-  @ApiOperation({ summary: 'Listar productos del taller' })
-  @ApiResponse({ status: 200, description: 'Lista de productos' })
-  async findAll() {
-    const data = await this.productsService.findAll();
+  @ApiOperation({ summary: 'Listar productos del taller (paginado)' })
+  @ApiResponse({ status: 200, description: 'Lista paginada de productos' })
+  async findAll(@Query() pagination: PaginationDto) {
+    const data = await this.productsService.findAll(pagination);
     return { message: 'Productos obtenidos exitosamente', data };
   }
 

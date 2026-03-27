@@ -21,9 +21,17 @@ const mockVehicle = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+const mockPaginatedResult = {
+  items: [mockVehicle],
+  total: 1,
+  page: 1,
+  limit: 20,
+  totalPages: 1,
+};
+
 const mockService = {
   create: jest.fn().mockResolvedValue(mockVehicle),
-  findAll: jest.fn().mockResolvedValue([mockVehicle]),
+  findAll: jest.fn().mockResolvedValue(mockPaginatedResult),
   findByClient: jest.fn().mockResolvedValue([mockVehicle]),
   findOne: jest.fn().mockResolvedValue(mockVehicle),
   findByPlate: jest.fn().mockResolvedValue(mockVehicle),
@@ -58,11 +66,12 @@ describe('VehiclesController', () => {
   });
 
   describe('GET /vehicles', () => {
-    it('should return all vehicles', async () => {
-      const result = await controller.findAll();
+    it('should return paginated vehicles', async () => {
+      const pagination = { page: 1, limit: 20, skip: 0 };
+      const result = await controller.findAll(pagination as never);
 
       expect(result.message).toBe('Vehículos obtenidos exitosamente');
-      expect(result.data).toHaveLength(1);
+      expect(result.data.items).toHaveLength(1);
     });
   });
 

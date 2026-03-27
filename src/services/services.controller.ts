@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -20,6 +21,7 @@ import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServicesService } from './services.service';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Services')
 @ApiBearerAuth('access-token')
@@ -40,10 +42,10 @@ export class ServicesController {
 
   @Get()
   @RequirePermissions('services.view')
-  @ApiOperation({ summary: 'Listar servicios activos del taller' })
-  @ApiResponse({ status: 200, description: 'Lista de servicios' })
-  async findAll() {
-    const data = await this.servicesService.findAll();
+  @ApiOperation({ summary: 'Listar servicios activos del taller (paginado)' })
+  @ApiResponse({ status: 200, description: 'Lista paginada de servicios' })
+  async findAll(@Query() pagination: PaginationDto) {
+    const data = await this.servicesService.findAll(pagination);
     return { message: 'Servicios obtenidos exitosamente', data };
   }
 

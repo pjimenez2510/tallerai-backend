@@ -30,6 +30,11 @@ import {
   QuoteTaskItem,
   QuotePartItem,
 } from './interfaces/quote-response.interface';
+import {
+  PaginationDto,
+  buildPaginatedResponse,
+} from '../common/dto/pagination.dto';
+import { PaginatedData } from '../common/interfaces/api-response.interface';
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -112,7 +117,10 @@ export class WorkOrdersService {
     return this.mapWorkOrder(workOrder);
   }
 
-  async findAll(status?: WorkOrderStatus): Promise<WorkOrderResponse[]> {
+  async findAll(
+    pagination: PaginationDto,
+    status?: WorkOrderStatus,
+  ): Promise<PaginatedData<WorkOrderResponse>> {
     const tenantId = this.tenantContext.getTenantId();
 
     const where: Prisma.WorkOrderWhereInput = { tenant_id: tenantId };
@@ -120,13 +128,22 @@ export class WorkOrdersService {
       where.status = status;
     }
 
-    const workOrders = await this.prisma.workOrder.findMany({
-      where,
-      include: INCLUDE_RELATIONS,
-      orderBy: { created_at: 'desc' },
-    });
+    const [workOrders, total] = await Promise.all([
+      this.prisma.workOrder.findMany({
+        where,
+        include: INCLUDE_RELATIONS,
+        orderBy: { created_at: 'desc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+      }),
+      this.prisma.workOrder.count({ where }),
+    ]);
 
-    return workOrders.map((wo) => this.mapWorkOrder(wo));
+    return buildPaginatedResponse(
+      workOrders.map((wo) => this.mapWorkOrder(wo)),
+      total,
+      pagination,
+    );
   }
 
   async findOne(id: string): Promise<WorkOrderResponse> {

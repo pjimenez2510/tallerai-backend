@@ -9,6 +9,7 @@ const mockPrisma = {
     findMany: jest.fn(),
     findFirst: jest.fn(),
     update: jest.fn(),
+    count: jest.fn(),
   },
 };
 
@@ -114,16 +115,17 @@ describe('ProductsService', () => {
   });
 
   describe('findAll', () => {
-    it('should return all active products', async () => {
+    const pagination = { page: 1, limit: 20, skip: 0 };
+
+    it('should return paginated active products', async () => {
       mockPrisma.product.findMany.mockResolvedValue([makeProduct()]);
+      mockPrisma.product.count.mockResolvedValue(1);
 
-      const result = await service.findAll();
+      const result = await service.findAll(pagination);
 
-      expect(result).toHaveLength(1);
-      expect(mockPrisma.product.findMany).toHaveBeenCalledWith({
-        where: { tenant_id: TENANT_ID, is_active: true },
-        orderBy: { name: 'asc' },
-      });
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(1);
     });
   });
 

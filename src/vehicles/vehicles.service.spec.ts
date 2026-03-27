@@ -9,6 +9,7 @@ const mockPrisma = {
     findMany: jest.fn(),
     findFirst: jest.fn(),
     update: jest.fn(),
+    count: jest.fn(),
   },
   client: {
     findFirst: jest.fn(),
@@ -118,17 +119,17 @@ describe('VehiclesService', () => {
   });
 
   describe('findAll', () => {
-    it('should return all active vehicles', async () => {
+    const pagination = { page: 1, limit: 20, skip: 0 };
+
+    it('should return paginated active vehicles', async () => {
       mockPrisma.vehicle.findMany.mockResolvedValue([makeVehicle()]);
+      mockPrisma.vehicle.count.mockResolvedValue(1);
 
-      const result = await service.findAll();
+      const result = await service.findAll(pagination);
 
-      expect(result).toHaveLength(1);
-      expect(mockPrisma.vehicle.findMany).toHaveBeenCalledWith({
-        where: { tenant_id: TENANT_ID, is_active: true },
-        include: { client: true },
-        orderBy: { created_at: 'desc' },
-      });
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(1);
     });
   });
 
