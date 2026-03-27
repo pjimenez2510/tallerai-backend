@@ -29,9 +29,17 @@ const mockWorkOrder = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+const mockPaginatedResult = {
+  items: [mockWorkOrder],
+  total: 1,
+  page: 1,
+  limit: 20,
+  totalPages: 1,
+};
+
 const mockService = {
   create: jest.fn().mockResolvedValue(mockWorkOrder),
-  findAll: jest.fn().mockResolvedValue([mockWorkOrder]),
+  findAll: jest.fn().mockResolvedValue(mockPaginatedResult),
   findOne: jest.fn().mockResolvedValue(mockWorkOrder),
   update: jest.fn().mockResolvedValue({
     ...mockWorkOrder,
@@ -63,17 +71,20 @@ describe('WorkOrdersController', () => {
   });
 
   describe('GET /work-orders', () => {
-    it('should return all work orders', async () => {
-      const result = await controller.findAll();
+    const pagination = { page: 1, limit: 20, skip: 0 };
+
+    it('should return paginated work orders', async () => {
+      const result = await controller.findAll(pagination as never);
 
       expect(result.message).toBe('Órdenes de trabajo obtenidas exitosamente');
-      expect(result.data).toHaveLength(1);
+      expect(result.data.items).toHaveLength(1);
     });
 
     it('should filter by status', async () => {
-      await controller.findAll(WorkOrderStatus.recepcion);
+      await controller.findAll(pagination as never, WorkOrderStatus.recepcion);
 
       expect(mockService.findAll).toHaveBeenCalledWith(
+        pagination,
         WorkOrderStatus.recepcion,
       );
     });

@@ -15,6 +15,11 @@ import {
   ProductResponse,
   StockMovementResponse,
 } from './interfaces/product-response.interface';
+import {
+  PaginationDto,
+  buildPaginatedResponse,
+} from '../common/dto/pagination.dto';
+import { PaginatedData } from '../common/interfaces/api-response.interface';
 
 @Injectable()
 export class ProductsService {
@@ -57,15 +62,28 @@ export class ProductsService {
     return this.mapProduct(product);
   }
 
-  async findAll(): Promise<ProductResponse[]> {
+  async findAll(
+    pagination: PaginationDto,
+  ): Promise<PaginatedData<ProductResponse>> {
     const tenantId = this.tenantContext.getTenantId();
 
-    const products = await this.prisma.product.findMany({
-      where: { tenant_id: tenantId, is_active: true },
-      orderBy: { name: 'asc' },
-    });
+    const where = { tenant_id: tenantId, is_active: true };
 
-    return products.map((p) => this.mapProduct(p));
+    const [products, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(
+      products.map((p) => this.mapProduct(p)),
+      total,
+      pagination,
+    );
   }
 
   async findOne(id: string): Promise<ProductResponse> {

@@ -10,6 +10,7 @@ const mockPrisma = {
     findMany: jest.fn(),
     findFirst: jest.fn(),
     update: jest.fn(),
+    count: jest.fn(),
   },
   client: { findFirst: jest.fn() },
   vehicle: { findFirst: jest.fn() },
@@ -103,18 +104,23 @@ describe('WorkOrdersService', () => {
   });
 
   describe('findAll', () => {
-    it('should return all work orders for tenant', async () => {
+    const pagination = { page: 1, limit: 20, skip: 0 };
+
+    it('should return paginated work orders for tenant', async () => {
       mockPrisma.workOrder.findMany.mockResolvedValue([makeWorkOrder()]);
+      mockPrisma.workOrder.count.mockResolvedValue(1);
 
-      const result = await service.findAll();
+      const result = await service.findAll(pagination);
 
-      expect(result).toHaveLength(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
     });
 
     it('should filter by status', async () => {
       mockPrisma.workOrder.findMany.mockResolvedValue([]);
+      mockPrisma.workOrder.count.mockResolvedValue(0);
 
-      await service.findAll(WorkOrderStatus.diagnostico);
+      await service.findAll(pagination, WorkOrderStatus.diagnostico);
 
       expect(mockPrisma.workOrder.findMany).toHaveBeenCalledWith(
         expect.objectContaining({

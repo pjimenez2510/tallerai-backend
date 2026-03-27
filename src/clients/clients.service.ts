@@ -9,6 +9,11 @@ import { TenantContext } from '../common/tenant/tenant.context';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ClientResponse } from './interfaces/client-response.interface';
+import {
+  PaginationDto,
+  buildPaginatedResponse,
+} from '../common/dto/pagination.dto';
+import { PaginatedData } from '../common/interfaces/api-response.interface';
 
 @Injectable()
 export class ClientsService {
@@ -43,15 +48,28 @@ export class ClientsService {
     return this.mapClient(client);
   }
 
-  async findAll(): Promise<ClientResponse[]> {
+  async findAll(
+    pagination: PaginationDto,
+  ): Promise<PaginatedData<ClientResponse>> {
     const tenantId = this.tenantContext.getTenantId();
 
-    const clients = await this.prisma.client.findMany({
-      where: { tenant_id: tenantId, is_active: true },
-      orderBy: { created_at: 'desc' },
-    });
+    const where = { tenant_id: tenantId, is_active: true };
 
-    return clients.map((c) => this.mapClient(c));
+    const [clients, total] = await Promise.all([
+      this.prisma.client.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+      }),
+      this.prisma.client.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(
+      clients.map((c) => this.mapClient(c)),
+      total,
+      pagination,
+    );
   }
 
   async findOne(id: string): Promise<ClientResponse> {

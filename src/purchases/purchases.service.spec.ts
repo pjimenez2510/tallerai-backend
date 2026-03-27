@@ -69,6 +69,7 @@ const mockPrisma = {
     findMany: jest.fn(),
     findFirst: jest.fn(),
     update: jest.fn(),
+    count: jest.fn(),
   },
   stockMovement: {
     create: jest.fn(),
@@ -116,12 +117,16 @@ describe('PurchasesService', () => {
   });
 
   describe('findAll', () => {
-    it('should return all purchase orders for tenant', async () => {
+    const pagination = { page: 1, limit: 20, skip: 0 };
+
+    it('should return paginated purchase orders for tenant', async () => {
       mockPrisma.purchaseOrder.findMany.mockResolvedValue([makeOrder()]);
+      mockPrisma.purchaseOrder.count.mockResolvedValue(1);
 
-      const result = await service.findAll();
+      const result = await service.findAll(pagination);
 
-      expect(result).toHaveLength(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
       expect(mockPrisma.purchaseOrder.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { tenant_id: TENANT_ID },

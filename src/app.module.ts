@@ -18,6 +18,7 @@ import { WorkOrdersModule } from './work-orders/work-orders.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { MechanicModule } from './mechanic/mechanic.module';
 import { RolesModule } from './roles/roles.module';
+import { SearchModule } from './search/search.module';
 import { appConfig } from './config/app.config';
 import { databaseConfig } from './config/database.config';
 import { jwtConfig } from './config/jwt.config';
@@ -55,6 +56,7 @@ import { PrismaModule } from './prisma/prisma.module';
     DashboardModule,
     MechanicModule,
     RolesModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],

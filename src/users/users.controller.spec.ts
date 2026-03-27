@@ -14,9 +14,17 @@ const mockUser = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+const mockPaginatedResult = {
+  items: [mockUser],
+  total: 1,
+  page: 1,
+  limit: 20,
+  totalPages: 1,
+};
+
 const mockService = {
   create: jest.fn().mockResolvedValue(mockUser),
-  findAll: jest.fn().mockResolvedValue([mockUser]),
+  findAll: jest.fn().mockResolvedValue(mockPaginatedResult),
   findOne: jest.fn().mockResolvedValue(mockUser),
   update: jest.fn().mockResolvedValue({ ...mockUser, name: 'Updated' }),
   deactivate: jest.fn().mockResolvedValue({ ...mockUser, isActive: false }),
@@ -49,11 +57,12 @@ describe('UsersController', () => {
   });
 
   describe('GET /users', () => {
-    it('should return all users', async () => {
-      const result = await controller.findAll();
+    it('should return paginated users', async () => {
+      const pagination = { page: 1, limit: 20, skip: 0 };
+      const result = await controller.findAll(pagination as never);
 
       expect(result.message).toBe('Usuarios obtenidos exitosamente');
-      expect(result.data).toEqual([mockUser]);
+      expect(result.data).toEqual(mockPaginatedResult);
     });
   });
 

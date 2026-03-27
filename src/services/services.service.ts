@@ -10,6 +10,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServiceResponse } from './interfaces/service-response.interface';
+import {
+  PaginationDto,
+  buildPaginatedResponse,
+} from '../common/dto/pagination.dto';
+import { PaginatedData } from '../common/interfaces/api-response.interface';
 
 @Injectable()
 export class ServicesService {
@@ -42,15 +47,28 @@ export class ServicesService {
     return this.mapService(service);
   }
 
-  async findAll(): Promise<ServiceResponse[]> {
+  async findAll(
+    pagination: PaginationDto,
+  ): Promise<PaginatedData<ServiceResponse>> {
     const tenantId = this.tenantContext.getTenantId();
 
-    const services = await this.prisma.service.findMany({
-      where: { tenant_id: tenantId, is_active: true },
-      orderBy: { name: 'asc' },
-    });
+    const where = { tenant_id: tenantId, is_active: true };
 
-    return services.map((s) => this.mapService(s));
+    const [services, total] = await Promise.all([
+      this.prisma.service.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+      }),
+      this.prisma.service.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(
+      services.map((s) => this.mapService(s)),
+      total,
+      pagination,
+    );
   }
 
   async findOne(id: string): Promise<ServiceResponse> {

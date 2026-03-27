@@ -17,9 +17,17 @@ const mockClient = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+const mockPaginatedResult = {
+  items: [mockClient],
+  total: 1,
+  page: 1,
+  limit: 20,
+  totalPages: 1,
+};
+
 const mockService = {
   create: jest.fn().mockResolvedValue(mockClient),
-  findAll: jest.fn().mockResolvedValue([mockClient]),
+  findAll: jest.fn().mockResolvedValue(mockPaginatedResult),
   findOne: jest.fn().mockResolvedValue(mockClient),
   update: jest.fn().mockResolvedValue({ ...mockClient, name: 'Updated' }),
   deactivate: jest.fn().mockResolvedValue({ ...mockClient, isActive: false }),
@@ -53,11 +61,12 @@ describe('ClientsController', () => {
   });
 
   describe('GET /clients', () => {
-    it('should return all clients', async () => {
-      const result = await controller.findAll();
+    it('should return paginated clients', async () => {
+      const pagination = { page: 1, limit: 20, skip: 0 };
+      const result = await controller.findAll(pagination as never);
 
       expect(result.message).toBe('Clientes obtenidos exitosamente');
-      expect(result.data).toEqual([mockClient]);
+      expect(result.data).toEqual(mockPaginatedResult);
     });
   });
 

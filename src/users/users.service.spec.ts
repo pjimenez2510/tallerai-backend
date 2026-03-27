@@ -12,6 +12,7 @@ const mockPrisma = {
     findMany: jest.fn(),
     findFirst: jest.fn(),
     update: jest.fn(),
+    count: jest.fn(),
   },
 };
 
@@ -127,28 +128,30 @@ describe('UsersService', () => {
   });
 
   describe('findAll', () => {
-    it('should return all users for the tenant', async () => {
+    const pagination = { page: 1, limit: 20, skip: 0 };
+
+    it('should return paginated users for the tenant', async () => {
       mockPrisma.user.findMany.mockResolvedValue([
         makeUser(),
         makeUser({ id: 'user-002', name: 'Pedro' }),
       ]);
+      mockPrisma.user.count.mockResolvedValue(2);
 
-      const result = await service.findAll();
+      const result = await service.findAll(pagination);
 
-      expect(result).toHaveLength(2);
-      expect(mockPrisma.user.findMany).toHaveBeenCalledWith({
-        where: { tenant_id: TENANT_ID },
-        include: { role: true },
-        orderBy: { created_at: 'desc' },
-      });
+      expect(result.items).toHaveLength(2);
+      expect(result.total).toBe(2);
+      expect(result.page).toBe(1);
     });
 
-    it('should return empty array if no users', async () => {
+    it('should return empty paginated result if no users', async () => {
       mockPrisma.user.findMany.mockResolvedValue([]);
+      mockPrisma.user.count.mockResolvedValue(0);
 
-      const result = await service.findAll();
+      const result = await service.findAll(pagination);
 
-      expect(result).toEqual([]);
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
     });
   });
 

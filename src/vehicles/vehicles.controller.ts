@@ -22,6 +22,7 @@ import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { VehiclesService } from './vehicles.service';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Vehicles')
 @ApiBearerAuth('access-token')
@@ -43,10 +44,10 @@ export class VehiclesController {
 
   @Get()
   @RequirePermissions('vehicles.view')
-  @ApiOperation({ summary: 'Listar vehículos del taller' })
-  @ApiResponse({ status: 200, description: 'Lista de vehículos' })
-  async findAll() {
-    const data = await this.vehiclesService.findAll();
+  @ApiOperation({ summary: 'Listar vehículos del taller (paginado)' })
+  @ApiResponse({ status: 200, description: 'Lista paginada de vehículos' })
+  async findAll(@Query() pagination: PaginationDto) {
+    const data = await this.vehiclesService.findAll(pagination);
     return { message: 'Vehículos obtenidos exitosamente', data };
   }
 

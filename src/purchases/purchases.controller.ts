@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -20,6 +21,7 @@ import {
 import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
 import { PurchasesService } from './purchases.service';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Purchases')
 @ApiBearerAuth('access-token')
@@ -40,10 +42,13 @@ export class PurchasesController {
 
   @Get()
   @RequirePermissions('purchases.view')
-  @ApiOperation({ summary: 'Listar órdenes de compra del taller' })
-  @ApiResponse({ status: 200, description: 'Lista de órdenes de compra' })
-  async findAll() {
-    const data = await this.purchasesService.findAll();
+  @ApiOperation({ summary: 'Listar órdenes de compra del taller (paginado)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista paginada de órdenes de compra',
+  })
+  async findAll(@Query() pagination: PaginationDto) {
+    const data = await this.purchasesService.findAll(pagination);
     return { message: 'Órdenes de compra obtenidas exitosamente', data };
   }
 

@@ -22,6 +22,7 @@ import { JwtAuthGuard, PermissionsGuard, RequirePermissions } from '../auth';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ClientsService } from './clients.service';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Clients')
 @ApiBearerAuth('access-token')
@@ -45,10 +46,10 @@ export class ClientsController {
 
   @Get()
   @RequirePermissions('clients.view')
-  @ApiOperation({ summary: 'Listar clientes del taller' })
-  @ApiResponse({ status: 200, description: 'Lista de clientes' })
-  async findAll() {
-    const data = await this.clientsService.findAll();
+  @ApiOperation({ summary: 'Listar clientes del taller (paginado)' })
+  @ApiResponse({ status: 200, description: 'Lista paginada de clientes' })
+  async findAll(@Query() pagination: PaginationDto) {
+    const data = await this.clientsService.findAll(pagination);
     return { message: 'Clientes obtenidos exitosamente', data };
   }
 
