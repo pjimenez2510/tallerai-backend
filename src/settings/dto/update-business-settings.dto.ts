@@ -48,7 +48,8 @@ export class UpdateBusinessSettingsDto {
   workingHours?: string;
 
   @ApiPropertyOptional({
-    description: 'Plantilla de imagen del vehículo para mapa de daños (base64 o URL). Opciones: sedan, camioneta, suv, moto, bus, o una imagen custom.',
+    description:
+      'Plantilla de imagen del vehículo para mapa de daños (base64 o URL). Opciones: sedan, camioneta, suv, moto, bus, o una imagen custom.',
     maxLength: 50,
   })
   @IsOptional()
